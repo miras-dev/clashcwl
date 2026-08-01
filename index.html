@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Village Analyzer — Clash Companion</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav>
+    <div class="logo"><span class="logo-slot"><img src="assets/logo.jpeg" alt="logo" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='assets/logo.png'}else{this.parentElement.classList.add('empty');this.remove()}" /></span>Clash<span>Companion</span></div>
+    <div class="nav-links">
+    <a href="index.html" class="active">Village Analyzer</a>
+    <a href="bases.html">Legend Bases</a>
+    <a href="coach.html">AI Coach</a>
+    <a href="cwl.html">CWL Planner</a>
+    <a href="cwl-group.html">CWL Helper</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge">Meta data: July 2026 · TH18</div>
+  </nav>
+
+  <main>
+    <h1>Village <span class="gold">Analyzer</span></h1>
+    <p class="subtitle">
+      Know exactly what to upgrade next. Paste your village data and get your heroes and
+      equipment scored against the current <strong>July 2026 TH18 meta</strong> — with a
+      ranked upgrade list, Ore-spending advice, and army suggestions for your Town Hall.
+    </p>
+
+    <!-- What this app does — visible before any data entry, so a first-time
+         visitor sees the value instead of an empty textarea. -->
+    <div class="tool-grid" id="toolGrid">
+      <a class="tool-card" href="#analyzeCard">
+        <div class="tool-ico">🏰</div>
+        <div><strong>Village Analyzer</strong><span class="muted small">Upgrade priorities &amp; equipment tiers</span></div>
+      </a>
+      <a class="tool-card" href="cwl-group.html">
+        <div class="tool-ico">⚔️</div>
+        <div><strong>CWL Helper</strong><span class="muted small">Rank your group, plan all 7 war days</span></div>
+      </a>
+      <a class="tool-card" href="coach.html">
+        <div class="tool-ico">💬</div>
+        <div><strong>AI Coach</strong><span class="muted small">Ask anything about the current meta</span></div>
+      </a>
+      <a class="tool-card" href="bases.html">
+        <div class="tool-ico">🛡️</div>
+        <div><strong>Legend Bases</strong><span class="muted small">Save and share your layouts</span></div>
+      </a>
+    </div>
+
+    <div class="card" id="analyzeCard">
+      <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px">
+        <div>
+          <h3 style="margin:0">Analyze your village</h3>
+          <p class="muted small" style="margin-top:4px">
+            New here? Hit <strong>Try with sample data</strong> to see the full breakdown instantly —
+            no account, nothing to install.
+          </p>
+        </div>
+      </div>
+
+      <div class="row" style="margin:14px 0">
+        <button id="sampleBtn">▶ Try with sample data</button>
+        <span class="muted small">or paste your own below</span>
+      </div>
+
+      <label for="jsonInput">Player / village JSON</label>
+      <textarea id="jsonInput" rows="8" placeholder='{"tag":"#ABC123","name":"Chief","townHallLevel":17,"heroes":[...],"heroEquipment":[...],"troops":[...],"spells":[...]}'></textarea>
+      <div class="row" style="margin-top:12px">
+        <button id="analyzeBtn">Analyze Village</button>
+        <button id="clearBtn" class="danger">Clear saved data</button>
+      </div>
+      <div id="parseError" class="error" style="display:none"></div>
+      <details style="margin-top:14px">
+        <summary>How do I get my JSON?</summary>
+        <p class="muted" style="margin-top:8px">
+          1. Create a free account at <code>developer.clashofclans.com</code> and generate an API key.<br />
+          2. Call <code>GET https://api.clashofclans.com/v1/players/%23YOURTAG</code> with the key.<br />
+          3. Paste the whole response here. Sites like Clash of Stats or Discord bots (ClashKing)
+          can also export this JSON for you.<br />
+          <em>Note:</em> the official API exposes heroes, equipment, troops and spells — defense
+          levels aren't public, but if your JSON includes a <code>buildings</code> array (from a
+          layout-export tool) we'll show those too.
+        </p>
+      </details>
+    </div>
+
+    <div id="results" style="display:none">
+      <div class="card" id="playerSummary"></div>
+
+      <h2>Heroes</h2>
+      <div class="grid3" id="heroCards"></div>
+
+      <h2>Hero Equipment</h2>
+      <div class="card">
+        <table id="equipTable">
+          <thead>
+            <tr><th>Equipment</th><th>Hero</th><th>Rarity</th><th>Level</th><th>Progress</th><th>Meta tier</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h2>Upgrade Priorities</h2>
+      <div class="card" id="priorities"></div>
+
+      <div class="grid2">
+        <div>
+          <h2>Troops</h2>
+          <div class="card" id="troopsList"></div>
+        </div>
+        <div>
+          <h2>Spells</h2>
+          <div class="card" id="spellsList"></div>
+        </div>
+      </div>
+
+      <div id="buildingsSection" style="display:none">
+        <h2>Defenses / Buildings</h2>
+        <div class="card" id="buildingsList"></div>
+      </div>
+
+      <h2>Recommended Armies for your Town Hall</h2>
+      <div id="armySuggestions"></div>
+    </div>
+  </main>
+
+  <script src="js/idmap.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/analyzer.js"></script>
+</body>
+</html>

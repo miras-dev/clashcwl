@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Legend Bases — Clash Companion</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav>
+    <div class="logo"><span class="logo-slot"><img src="assets/logo.jpeg" alt="logo" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='assets/logo.png'}else{this.parentElement.classList.add('empty');this.remove()}" /></span>Clash<span>Companion</span></div>
+    <div class="nav-links">
+    <a href="index.html">Village Analyzer</a>
+    <a href="bases.html" class="active">Legend Bases</a>
+    <a href="coach.html">AI Coach</a>
+    <a href="cwl.html">CWL Planner</a>
+    <a href="cwl-group.html">CWL Helper</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge">Meta data: July 2026 · TH18</div>
+  </nav>
+
+  <main>
+    <h1>Legend <span class="gold">Base Drops</span></h1>
+    <p class="subtitle">
+      Drop your Legend League base layouts here — paste the in-game copy link
+      (<code>link.clashofclans.com…OpenLayout</code>), add a screenshot, tag the Town Hall,
+      and build your own library. Everything is stored locally in your browser.
+      <br /><span class="small muted">2026 Legend tip: with Legend I/II/III tiers and up to 30 attacks a week,
+      rotate anti-2-star layouts often — Guardians split-covered, air defenses spread vs Hydra,
+      Monolith + Multi-Inferno core vs Root Riders.</span>
+    </p>
+
+    <div class="card">
+      <h3>Drop a new base</h3>
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <label for="baseName">Base name</label>
+          <input type="text" id="baseName" placeholder="e.g. Anti-Hydra Ring v3" />
+
+          <label for="baseLink">Base copy link</label>
+          <input type="url" id="baseLink" placeholder="https://link.clashofclans.com/en?action=OpenLayout&id=TH18%3A..." />
+
+          <label for="baseTH">Town Hall</label>
+          <select id="baseTH">
+            <option value="18">TH18</option>
+            <option value="17">TH17</option>
+            <option value="16">TH16</option>
+            <option value="15">TH15</option>
+          </select>
+
+          <label for="baseTags">Style tags</label>
+          <input type="text" id="baseTags" placeholder="anti-2-star, ring, anti-air, war…" />
+
+          <label for="baseNotes">Notes (what it defends well / results)</label>
+          <textarea id="baseNotes" rows="3" placeholder="Held 3x vs Super Bowler Smash this week…"></textarea>
+        </div>
+        <div>
+          <label>Screenshot (optional)</label>
+          <div class="drop-zone" id="dropZone">
+            📷 Drag &amp; drop a base screenshot here<br /><span class="small">or click to choose a file</span>
+            <input type="file" id="fileInput" accept="image/*" style="display:none" />
+          </div>
+          <div id="previewWrap" style="margin-top:12px; display:none">
+            <img id="previewImg" style="max-width:100%; border-radius:10px; border:1px solid var(--border)" alt="Base preview" />
+            <button class="danger small" id="removeImg" style="margin-top:8px">Remove image</button>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <button id="addBaseBtn">Add Base</button>
+        <span id="baseMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="row" style="justify-content:space-between; margin: 24px 0 12px">
+      <h2 style="margin:0">Your base library</h2>
+      <div class="row">
+        <select id="filterTH">
+          <option value="all">All Town Halls</option>
+          <option value="18">TH18</option>
+          <option value="17">TH17</option>
+          <option value="16">TH16</option>
+          <option value="15">TH15</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="base-grid" id="baseGrid"></div>
+    <p class="muted" id="emptyMsg" style="text-align:center; padding:40px 0">
+      No bases yet — drop your first Legend layout above. ☝️
+    </p>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/bases.js"></script>
+</body>
+</html>

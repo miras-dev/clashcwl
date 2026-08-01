@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CWL Medal Planner — Clash Companion</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* Additional scoped styles for CWL Planner page */
+    .medal-dashboard-card {
+      background: linear-gradient(135deg, var(--card) 0%, var(--card2) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .medal-dashboard-card::before {
+      content: "";
+      position: absolute;
+      top: -50px; right: -50px;
+      width: 150px; height: 150px;
+      background: radial-gradient(circle, rgba(246, 185, 59, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .big-medal-value {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--gold);
+      line-height: 1;
+      margin: 10px 0;
+      text-shadow: 0 0 10px rgba(246, 185, 59, 0.2);
+    }
+    .stat-breakdown {
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      margin-top: 12px;
+      font-size: 0.85rem;
+    }
+    .war-days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .day-selector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .day-selector.active {
+      border-color: var(--gold);
+      background: rgba(246, 185, 59, 0.08);
+    }
+    .day-selector label {
+      font-size: 0.68rem;
+      margin: 0 0 4px;
+      color: var(--muted);
+    }
+    .day-selector select {
+      width: 90%;
+      padding: 2px;
+      font-size: 0.75rem;
+      text-align: center;
+      border: none;
+      background: transparent;
+      outline: none;
+    }
+    .loot-shop-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .loot-item-card {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+    .loot-item-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--gold);
+    }
+    .loot-item-icon {
+      font-size: 1.8rem;
+      margin-bottom: 6px;
+    }
+    .loot-item-price {
+      font-weight: 700;
+      color: var(--gold);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+    .combo-item {
+      display: flex;
+      justify-content: space-between;
+      background: var(--bg2);
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 0.88rem;
+      border-left: 3px solid var(--gold);
+    }
+    .roster-table th, .roster-table td {
+      padding: 10px 14px;
+    }
+    .roster-table tr.selected {
+      background: rgba(246, 185, 59, 0.05);
+      border-left: 3px solid var(--gold);
+    }
+    .badge-win {
+      background: rgba(61, 220, 132, 0.15);
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
+    .yield-text {
+      font-weight: 700;
+    }
+    .yield-max {
+      color: var(--green);
+    }
+    .yield-mid {
+      color: var(--gold);
+    }
+    .yield-low {
+      color: var(--red);
+    }
+    .quick-tag-badge {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      transition: all 0.15s;
+    }
+    .quick-tag-badge:hover {
+      background: var(--border);
+      border-color: var(--muted);
+    }
+    .flex-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .form-inline {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .form-inline input {
+      max-width: 150px;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo"><span class="logo-slot"><img src="assets/logo.jpeg" alt="logo" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='assets/logo.png'}else{this.parentElement.classList.add('empty');this.remove()}" /></span>Clash<span>Companion</span></div>
+    <div class="nav-links">
+    <a href="index.html">Village Analyzer</a>
+    <a href="bases.html">Legend Bases</a>
+    <a href="coach.html">AI Coach</a>
+    <a href="cwl.html" class="active">CWL Planner</a>
+    <a href="cwl-group.html">CWL Helper</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge">Meta data: July 2026 · TH18</div>
+  </nav>
+
+  <main>
+    <div class="flex-header">
+      <div>
+        <h1>CWL Medal <span class="gold">Planner</span></h1>
+        <p class="subtitle" style="margin-bottom:0">Plan your roster rotation, track star yields, distribute clan bonuses, and optimize your CWL shop loot.</p>
+      </div>
+      <div class="badge badge-win" id="planningSeason">2026 CWL Season</div>
+    </div>
+
+    <!-- Clan & League Settings -->
+    <div class="card">
+      <div class="grid2">
+        <div>
+          <label for="clanTagInput">Search Clan Tag</label>
+          <div class="row">
+            <input type="text" id="clanTagInput" placeholder="#YOURCLAN" style="max-width: 280px" />
+            <button id="searchClanBtn">Search</button>
+            <button id="clearRosterBtn" class="danger">Clear All</button>
+          </div>
+          <div style="margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
+            <span class="muted small">Try a tag:</span>
+            <span class="quick-tag-badge" id="sampleTag1">#DONCLAN</span>
+            <span class="quick-tag-badge" id="sampleTag2">#2Y9Y9Y9Y</span>
+            <button class="secondary small" id="autoPopulateBtn" style="padding: 4px 10px; font-size: 0.8rem">Auto Populate Roster</button>
+          </div>
+          <div id="searchMsg" class="muted small" style="margin-top: 8px"></div>
+        </div>
+
+        <div>
+          <div class="grid2" style="gap: 12px">
+            <div>
+              <label for="leagueSelect">CWL League</label>
+              <select id="leagueSelect">
+                <!-- Populated dynamically via JS -->
+              </select>
+            </div>
+            <div>
+              <label for="placementSelect">Placement</label>
+              <select id="placementSelect">
+                <option value="1">1st Place</option>
+                <option value="2">2nd Place</option>
+                <option value="3">3rd Place</option>
+                <option value="4">4th Place</option>
+                <option value="5">5th Place</option>
+                <option value="6">6th Place</option>
+                <option value="7">7th Place</option>
+                <option value="8">8th Place</option>
+              </select>
+            </div>
+            <div>
+              <label for="winsSelect">War Wins</label>
+              <select id="winsSelect">
+                <option value="0">0 Wins</option>
+                <option value="1">1 Win</option>
+                <option value="2">2 Wins</option>
+                <option value="3">3 Wins</option>
+                <option value="4">4 Wins</option>
+                <option value="5">5 Wins</option>
+                <option value="6">6 Wins</option>
+                <option value="7">7 Wins</option>
+              </select>
+            </div>
+            <div>
+              <label for="rosterSizeSelect">CWL Size</label>
+              <select id="rosterSizeSelect">
+                <option value="15">15 vs 15</option>
+                <option value="30">30 vs 30</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Dashboard -->
+    <div class="grid3">
+      <!-- Medal Dashboard -->
+      <div class="card medal-dashboard-card">
+        <h3 id="dashPlayerName">Your Medal Dashboard</h3>
+        <p class="muted small">Projected medals based on stars &amp; bonus</p>
+        <div class="big-medal-value" id="dashTotalMedals">0</div>
+        
+        <div class="progress" id="dashYieldProgress">
+          <div style="width: 20%"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.78rem">
+          <span class="muted">Yield: <span id="dashYieldPercent" class="yield-text yield-low">20%</span></span>
+          <span class="muted" id="dashStarsText">Stars: 0 / 21</span>
+        </div>
+
+        <div style="margin-top: 14px">
+          <label style="margin-top:0">Quick Stars Selector</label>
+          <input type="range" id="dashStarsRange" min="0" max="21" value="0" style="width:100%" />
+        </div>
+
+        <div class="war-days-grid" id="warDaysGrid">
+          <!-- Day inputs populated dynamically -->
+        </div>
+
+        <div class="stat-breakdown">
+          <div>Base: <strong id="dashBaseMedals">0</strong></div>
+          <div>Bonus: <strong id="dashBonusMedals">0</strong></div>
+        </div>
+
+        <div style="margin-top: 14px; display: flex; align-items: center; gap: 8px">
+          <input type="checkbox" id="dashBonusCheckbox" style="width:16px; height:16px; cursor:pointer" />
+          <label for="dashBonusCheckbox" style="margin:0; font-weight:700; cursor:pointer">Received CWL Bonus Package</label>
+        </div>
+        
+        <div id="dashAdvice" class="muted small" style="margin-top: 12px; font-style: italic; border-left: 2px solid var(--border); padding-left: 8px">
+          Play in wars to earn stars and increase your yield.
+        </div>
+      </div>
+
+      <!-- Purchase Planner -->
+      <div class="card">
+        <h3>Purchase Planner</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px">
+          <span class="muted small">Best combo of shop items for:</span>
+          <select id="prioritySelect" style="max-width: 140px; padding: 4px 8px; font-size: 0.78rem">
+            <option value="building">Buildings &amp; Heroes</option>
+            <option value="lab">Laboratory</option>
+            <option value="balanced">Balanced Mix</option>
+          </select>
+        </div>
+        <div id="comboSpent" class="muted small" style="margin-bottom: 10px">
+          0 / 0 spent
+        </div>
+        <div id="plannerComboList" style="min-height: 180px">
+          <!-- Items populated dynamically -->
+        </div>
+        <div style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; display: flex; justify-content: space-between; font-size: 0.88rem">
+          <span>Unspent Balance:</span>
+          <strong id="comboLeftover" class="gold">0 medals</strong>
+        </div>
+      </div>
+
+      <!-- Bonus Distribution Overview -->
+      <div class="card">
+        <h3>Bonus Distribution</h3>
+        <p class="muted small">Manage available clan bonus packages</p>
+        
+        <div style="margin-top: 14px; padding: 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px">
+          <div style="display:flex; justify-content:space-between; font-size: 0.88rem; margin-bottom: 6px">
+            <span>Base Bonuses:</span>
+            <strong id="bonusBaseCount">0</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size: 0.88rem; margin-bottom: 6px">
+            <span>War Wins:</span>
+            <strong id="bonusWinsCount">+0</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size: 0.88rem; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 6px">
+            <span>Total Available Packages:</span>
+            <strong class="gold" id="bonusTotalCount">0</strong>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px">
+          <div style="display:flex; justify-content:space-between; font-size: 0.88rem; margin-bottom: 4px">
+            <span>Allocated Packages:</span>
+            <span id="bonusAllocatedText">0 / 0</span>
+          </div>
+          <div class="progress" id="bonusAllocationProgress" style="margin-top:0">
+            <div style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px">
+          <label for="bonusThreshold">Auto-grant threshold (Stars)</label>
+          <div class="row">
+            <select id="bonusThreshold" style="max-width:100px; padding: 5px">
+              <option value="all">Manual</option>
+              <option value="15">15+ Stars</option>
+              <option value="12">12+ Stars</option>
+              <option value="10">10+ Stars</option>
+              <option value="8">8+ Stars</option>
+              <option value="5">5+ Stars</option>
+              <option value="0">0+ Stars</option>
+            </select>
+            <button class="secondary small" id="autoGrantBtn">Apply</button>
+          </div>
+        </div>
+
+        <div id="bonusCoverageText" class="muted small" style="margin-top: 12px">
+          Bonus coverage: 0% of roster
+        </div>
+      </div>
+    </div>
+
+    <!-- Roster Management -->
+    <div class="card">
+      <div class="flex-header">
+        <h2 style="margin:0">CWL Roster &amp; Standings</h2>
+        <div class="form-inline">
+          <input type="text" id="newPlayerName" placeholder="Player Name" />
+          <input type="text" id="newPlayerTag" placeholder="#TAG" />
+          <input type="number" id="newPlayerStars" placeholder="Stars" min="0" max="21" value="0" style="max-width: 80px" />
+          <button id="addPlayerBtn">Add Player</button>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto">
+        <table class="roster-table" id="rosterTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player Name</th>
+              <th>Tag</th>
+              <th>Total Stars</th>
+              <th>Star Yield</th>
+              <th>CWL Bonus</th>
+              <th>Calculated Medals</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Roster lines populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 10px; font-size: 0.88rem" class="muted">
+        <div>Roster Size: <strong id="rosterSizeLabel" class="gold">0</strong></div>
+        <div>Total Clan Medals Earned: <strong id="rosterTotalMedalsLabel" class="gold">0</strong></div>
+        <div>Average Star Yield: <strong id="rosterAvgYieldLabel" class="gold">0%</strong></div>
+        <div>Players Capped (8+ Stars): <strong id="rosterAtCapLabel" class="gold">0</strong></div>
+      </div>
+    </div>
+
+    <!-- CWL Loot Shop -->
+    <div class="card">
+      <h2>CWL Loot Shop</h2>
+      <p class="muted small">Explore prices and click on items to add them to a quick budget calculation.</p>
+      <div class="loot-shop-grid" id="lootShopGrid">
+        <!-- Shop items populated dynamically -->
+      </div>
+      <div id="shopCalcPanel" style="display:none; margin-top: 18px; padding: 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <h4 style="margin:0">🛒 Quick Calculator Shopping Cart</h4>
+          <button class="danger small" id="clearCartBtn" style="padding:4px 8px; font-size:0.75rem">Clear Cart</button>
+        </div>
+        <div id="cartList" style="margin-top: 10px; display:flex; flex-direction:column; gap:6px">
+          <!-- Cart content -->
+        </div>
+        <div style="display:flex; justify-content:space-between; font-weight:700; border-top:1px solid var(--border); margin-top:10px; padding-top:10px; font-size:0.88rem">
+          <span>Cart Cost: <span id="cartTotalCost" class="gold">0 medals</span></span>
+          <span id="cartComparison"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reference tables & FAQ -->
+    <div class="grid2">
+      <!-- Medal Tables -->
+      <div class="card">
+        <h2>CWL Medal Table by League — 2026</h2>
+        <div style="overflow-x: auto; margin-top: 10px">
+          <table>
+            <thead>
+              <tr>
+                <th>League</th>
+                <th>1st Place</th>
+                <th>Per Step</th>
+                <th>Bonus Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Legend</td><td>508</td><td>-14</td><td>105</td></tr>
+              <tr><td>Titan I</td><td>454</td><td>-12</td><td>102</td></tr>
+              <tr><td>Titan III</td><td>454</td><td>-12</td><td>96</td></tr>
+              <tr><td>Champion I</td><td>408</td><td>-12</td><td>105</td></tr>
+              <tr><td>Champion III</td><td>360</td><td>-12</td><td>95</td></tr>
+              <tr><td>Master I</td><td>382</td><td>-12</td><td>90</td></tr>
+              <tr><td>Master II</td><td>346</td><td>-12</td><td>85</td></tr>
+              <tr><td>Master III</td><td>310</td><td>-12</td><td>80</td></tr>
+              <tr><td>Crystal I</td><td>274</td><td>-10</td><td>75</td></tr>
+              <tr><td>Crystal III</td><td>214</td><td>-10</td><td>65</td></tr>
+              <tr><td>Gold III</td><td>136</td><td>-8</td><td>50</td></tr>
+              <tr><td>Silver III</td><td>76</td><td>-6</td><td>35</td></tr>
+              <tr><td>Bronze I</td><td>58</td><td>-4</td><td>35</td></tr>
+              <tr><td>Bronze III</td><td>34</td><td>-4</td><td>35</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FAQ Section -->
+      <div class="card">
+        <h2>Frequently Asked Questions</h2>
+        <div style="margin-top:10px">
+          <details>
+            <summary>How many CWL medals do you get in Champion League?</summary>
+            <p class="muted small" style="margin-top:6px">In Champion III, first place earns 360 base medals. Each placement lower reduces base medals by 12. With 7 war wins, your clan receives 4 base bonuses + 7 = 11 total bonus packages worth 95 medals each. A player with 8 stars earns 100% of the placement reward (360 medals) plus their bonus share if granted.</p>
+          </details>
+          <details>
+            <summary>When should I rotate players in CWL?</summary>
+            <p class="muted small" style="margin-top:6px">Rotate a player out when they reach 8 stars (100% yield cap). Every star beyond 8 earns zero additional medals for that player. Swapping in a bench player with 0 stars adds a fresh 20% minimum yield contributor, maximizing the total medals your clan's roster brings home.</p>
+          </details>
+          <details>
+            <summary>What is the best use of CWL medals?</summary>
+            <p class="muted small" style="margin-top:6px">Hammers of Building (185 medals) and Hammers of Fighting (165 medals) provide the best time value. A Hammer of Building saves up to 19 days of upgrade time at TH18. Research Potions (35 medals) are also excellent value for lab progress.</p>
+          </details>
+          <details>
+            <summary>What is the CWL medal floor?</summary>
+            <p class="muted small" style="margin-top:6px">Every CWL participant receives a minimum 20% of their clan's placement reward regardless of stars earned. This is the Zero-Star Baseline Protection. In Champion III first place, even a 0-star player receives 72 medals. This prevents players from earning nothing if they were on the roster but could not execute attacks.</p>
+          </details>
+          <details>
+            <summary>How is the Star Yield calculated?</summary>
+            <p class="muted small" style="margin-top:6px">The yield percentage follows this formula: <code>min(100%, 20% + Stars * 10%)</code>. A player with 0 stars gets 20% yield, 3 stars gets 50%, and 8+ stars gets the full 100% yield.</p>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <!-- How it works explanation -->
+    <div class="card">
+      <h2>How CWL Medal Calculation Works</h2>
+      <p class="muted small" style="margin-top: 8px">
+        Clan War League (CWL) is a monthly 7-day tournament where clans compete in groups of 8. Your clan's final placement determines the base medals.
+        Your individual payout is calculated using: <strong>Final Medals = Base Medals &times; Star Yield + Bonus Package (if awarded)</strong>.
+      </p>
+      <div class="grid3" style="margin-top:14px; gap: 12px">
+        <div style="background: var(--bg2); padding: 12px; border-radius: 8px; border: 1px solid var(--border)">
+          <h4 style="color: var(--primary)">1. Base Medals</h4>
+          <p class="muted small" style="margin-top:4px">Based on your league tier and placement (1st to 8th). In Master II, 1st place awards 346 medals. 8th place awards 262.</p>
+        </div>
+        <div style="background: var(--bg2); padding: 12px; border-radius: 8px; border: 1px solid var(--border)">
+          <h4 style="color: var(--primary)">2. Star Yield</h4>
+          <p class="muted small" style="margin-top:4px">Yield starts at 20% and increases by 10% per star. It caps at 100% when you reach 8 stars. Higher star counts do not increase medals.</p>
+        </div>
+        <div style="background: var(--bg2); padding: 12px; border-radius: 8px; border: 1px solid var(--border)">
+          <h4 style="color: var(--primary)">3. Bonus Distribution</h4>
+          <p class="muted small" style="margin-top:4px">Bonus packages are distributed by the clan leadership. Each package awards a fixed value. Total packages = Base bonuses + War Wins.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer style="text-align: center; padding: 40px 20px; border-top: 1px solid var(--border); font-size: 0.8rem" class="muted">
+    <p>This content is not affiliated with, endorsed, sponsored, or specifically approved by Supercell and Supercell is not responsible for it. Clash of Clans is a trademark of Supercell Oy.</p>
+    <p style="margin-top: 8px">&copy; 2026 Clash Companion. Built for maximum CWL strategic planning.</p>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/cwl.js"></script>
+</body>
+</html>

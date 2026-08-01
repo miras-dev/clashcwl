@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Coach — Clash Companion</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav>
+    <div class="logo"><span class="logo-slot"><img src="assets/logo.jpeg" alt="logo" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='assets/logo.png'}else{this.parentElement.classList.add('empty');this.remove()}" /></span>Clash<span>Companion</span></div>
+    <div class="nav-links">
+    <a href="index.html">Village Analyzer</a>
+    <a href="bases.html">Legend Bases</a>
+    <a href="coach.html" class="active">AI Coach</a>
+    <a href="cwl.html">CWL Planner</a>
+    <a href="cwl-group.html">CWL Helper</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge">Meta data: July 2026 · TH18</div>
+  </nav>
+
+  <main>
+    <h1>AI <span class="gold">Coach</span></h1>
+    <p class="subtitle">
+      Ask anything about the current meta — equipment priorities, army comps, Legend pushing,
+      or what to upgrade next. The coach knows the July 2026 game state
+      <span id="playerStatus" class="pill gold" style="display:none">and your village from the Analyzer ✔</span>.
+    </p>
+
+    <details class="card" style="padding:16px 20px">
+      <summary>⚙️ Coach settings — built-in coach vs AI-powered</summary>
+      <div style="margin-top:14px">
+        <p class="muted">
+          By default the coach answers instantly from the built-in July 2026 knowledge base.
+          For deeper, conversational coaching you can connect your own OpenAI API key — it's
+          stored only in this browser and sent only to <code>api.openai.com</code>. Every AI
+          answer is grounded in the same knowledge base plus your analyzed village.
+        </p>
+        <label for="apiKey">OpenAI API key (optional)</label>
+        <div class="row">
+          <input type="password" id="apiKey" placeholder="sk-..." style="max-width:360px" />
+          <select id="modelSelect" style="max-width:160px">
+            <option value="gpt-5-mini">gpt-5-mini</option>
+            <option value="gpt-5">gpt-5</option>
+            <option value="gpt-4.1">gpt-4.1</option>
+            <option value="gpt-4o">gpt-4o</option>
+          </select>
+          <button id="saveKeyBtn" class="secondary">Save</button>
+          <button id="clearKeyBtn" class="danger">Remove</button>
+          <span id="keyStatus" class="muted small"></span>
+        </div>
+      </div>
+    </details>
+
+    <details class="card" style="padding:16px 20px" id="kbSettingsDetails">
+      <summary>📦 Game Release Data — edit local knowledge base</summary>
+      <div style="margin-top:14px">
+        <p class="muted">
+          This JSON represents the Clash of Clans release data (heroes, equipment, armies, updates, etc.) used by the coach to formulate answers. You can edit this JSON to update the coach's knowledge. It is stored in your browser's local storage.
+        </p>
+        <label for="kbJsonInput">Release Data JSON</label>
+        <textarea id="kbJsonInput" rows="12" style="font-family: monospace; font-size: 11px; margin-bottom:12px"></textarea>
+        <div class="row">
+          <button id="saveKbBtn" class="secondary">Save Release Data</button>
+          <button id="resetKbBtn" class="danger">Reset to Default</button>
+          <span id="kbStatus" class="muted small"></span>
+        </div>
+      </div>
+    </details>
+
+    <div class="suggestions" id="suggestions">
+      <button class="secondary">What equipment should I upgrade first?</button>
+      <button class="secondary">Best TH18 army right now?</button>
+      <button class="secondary">How does the new Ranked / Legend League work?</button>
+      <button class="secondary">Tell me about the Dragon Duke</button>
+      <button class="secondary">What changed in the July 2026 update?</button>
+      <button class="secondary">How should I spend my Ores?</button>
+    </div>
+
+    <div class="chat-box">
+      <div class="chat-msgs" id="chatMsgs">
+        <div class="msg bot">Hey Chief! 👋 I'm your Clash coach, up to date with the <strong>July 2026 "Barbarian's Odyssey"</strong> season and the TH18 meta. Analyze your village on the first page and I'll tailor my advice to your heroes and equipment. What do you want to work on?</div>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Ask your coach…" autocomplete="off" />
+        <button id="sendBtn">Send</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/coach.js"></script>
+</body>
+</html>

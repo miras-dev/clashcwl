@@ -1,0 +1,248 @@
+/* Clash Companion — shared styles */
+:root {
+  --bg: #10141f;
+  --bg2: #171c2b;
+  --card: #1d2334;
+  --card2: #232a3e;
+  --border: #2e3752;
+  --text: #e8ecf6;
+  --muted: #98a2bd;
+  --primary: #cf3838;  /* brand fill: buttons (white-on-red passes AA at 4.91) */
+  --primary2: #b52f2f; /* brand hover */
+  /* Lighter tint for brand-coloured TEXT. #cf3838 on the dark bg is only
+     3.74:1 — below the 4.5:1 AA threshold. This passes on --bg and --card. */
+  --primary-text: #e65f5f;
+  --gold: #f6b93b;     /* data accents: progress, levels, TH */
+  --gold2: #e0a12f;
+  --accent: #5b8cff;
+  --green: #3ddc84;
+  --red: #ff6b6b;
+  --purple: #b07cff;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: linear-gradient(180deg, var(--bg) 0%, #0b0e16 100%);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ---------- nav ---------- */
+nav {
+  display: flex; align-items: center; gap: 18px;
+  padding: 14px 28px;
+  background: rgba(16, 20, 31, 0.92);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(8px);
+}
+nav .logo { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 800; color: var(--primary-text); letter-spacing: .3px; }
+nav .logo span { color: var(--text); font-weight: 600; }
+/* logo slot — drop your image at assets/logo.png and it fills automatically */
+.logo-slot { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex: none; }
+.logo-slot img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+.logo-slot.empty { border: 2px dashed var(--border); border-radius: 8px; }
+nav a {
+  color: var(--muted); text-decoration: none; font-weight: 600; font-size: .95rem;
+  padding: 7px 14px; border-radius: 8px; transition: .15s; white-space: nowrap;
+}
+nav a:hover { color: var(--text); background: var(--card); }
+nav a.active { color: var(--primary-text); background: var(--card); }
+nav .spacer { flex: 1; }
+nav .badge {
+  font-size: .72rem; color: var(--muted); border: 1px solid var(--border);
+  padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+}
+nav .logo { white-space: nowrap; flex: none; }
+
+/* Mobile: the logo stays put and the links become a swipeable strip.
+   Without this the nowrap links force ~540px of horizontal page overflow. */
+@media (max-width: 900px) {
+  nav .badge, nav .spacer { display: none; }
+  nav {
+    gap: 10px; padding: 10px 14px;
+    /* let children shrink instead of pushing the page wider */
+    min-width: 0;
+  }
+  nav .nav-links {
+    display: flex; gap: 6px; align-items: center;
+    flex: 1 1 auto; min-width: 0;
+    overflow-x: auto; overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* fade the right edge to hint there's more to swipe */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+            mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+  }
+  nav .nav-links::-webkit-scrollbar { display: none; }
+  nav a {
+    padding: 13px 14px;            /* ≥44px tall — meets touch-target guidance */
+    font-size: .9rem; flex: none;
+    scroll-snap-align: start;
+  }
+  nav .logo { font-size: 1rem; gap: 8px; }
+  .logo-slot { width: 32px; height: 32px; }
+  main { padding: 22px 16px 64px; }
+  h1 { font-size: 1.45rem; }
+}
+
+/* Nothing may exceed the viewport width — a single overflowing child
+   (wide table, long tag) otherwise scrolls the whole page sideways. */
+html, body { max-width: 100%; overflow-x: hidden; }
+
+/* ---------- tool grid (landing) ---------- */
+.tool-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px; margin-bottom: 22px;
+}
+.tool-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; text-decoration: none; color: var(--text);
+  transition: border-color .15s, transform .15s, background .15s;
+}
+.tool-card:hover { border-color: var(--primary); background: var(--card2); transform: translateY(-2px); }
+.tool-card .tool-ico { font-size: 1.5rem; flex: none; }
+.tool-card strong { display: block; font-size: .94rem; margin-bottom: 2px; }
+.tool-card .small { line-height: 1.35; }
+
+/* ---------- loading / busy states ---------- */
+@keyframes cc-spin { to { transform: rotate(360deg); } }
+.spinner {
+  display: inline-block; width: 13px; height: 13px; flex: none;
+  border: 2px solid rgba(255,255,255,.25); border-top-color: #fff;
+  border-radius: 50%; animation: cc-spin .7s linear infinite;
+  vertical-align: -2px; margin-right: 7px;
+}
+.spinner.dark { border-color: rgba(152,162,189,.3); border-top-color: var(--primary-text); }
+.busy { pointer-events: none; opacity: .6; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+
+h1 { font-size: 1.7rem; margin-bottom: 6px; }
+h1 .gold { color: var(--primary-text); }
+.subtitle { color: var(--muted); margin-bottom: 26px; line-height: 1.5; }
+
+h2 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--primary-text); }
+h3 { font-size: 1rem; margin-bottom: 8px; }
+
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px; margin-bottom: 18px;
+}
+
+/* ---------- buttons & inputs ---------- */
+button, .btn {
+  background: var(--primary); color: #fff; border: none; cursor: pointer;
+  font-weight: 700; font-size: .92rem; padding: 10px 18px; border-radius: 9px;
+  transition: .15s;
+}
+button:hover, .btn:hover { background: var(--primary2); }
+button.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+button.secondary:hover { background: var(--border); }
+button.danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+textarea, input[type=text], input[type=password], input[type=url], select {
+  width: 100%; background: var(--bg2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 9px;
+  padding: 11px 13px; font-size: .92rem; font-family: inherit;
+}
+textarea { font-family: ui-monospace, Menlo, monospace; font-size: .82rem; resize: vertical; }
+textarea:focus, input:focus, select:focus { outline: none; border-color: var(--primary); }
+label { display: block; font-size: .85rem; color: var(--muted); margin: 12px 0 6px; font-weight: 600; }
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 800px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+.muted { color: var(--muted); font-size: .88rem; line-height: 1.55; }
+.small { font-size: .8rem; }
+.error { color: var(--red); font-size: .88rem; margin-top: 8px; }
+.success { color: var(--green); font-size: .88rem; margin-top: 8px; }
+
+/* ---------- progress bars ---------- */
+.progress {
+  height: 9px; background: var(--bg2); border-radius: 6px; overflow: hidden; margin-top: 6px;
+}
+.progress > div { height: 100%; background: linear-gradient(90deg, var(--gold), #ffd873); border-radius: 6px; }
+.progress.maxed > div { background: linear-gradient(90deg, var(--green), #7dffbc); }
+
+/* ---------- tier chips ---------- */
+.tier {
+  display: inline-block; min-width: 34px; text-align: center;
+  font-weight: 800; font-size: .78rem; padding: 3px 8px; border-radius: 7px;
+}
+.tier-sss { background: #ffd700; color: #3a2c00; }
+.tier-ss  { background: #f6b93b; color: #3a2c00; }
+.tier-s   { background: #b07cff; color: #221244; }
+.tier-a   { background: #5b8cff; color: #0e1c40; }
+.tier-b   { background: #3ddc84; color: #063d22; }
+.tier-c   { background: #98a2bd; color: #1c2233; }
+.tier-f   { background: #454e66; color: #b7bed2; }
+
+.pill {
+  display: inline-block; font-size: .75rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted);
+}
+.pill.epic { color: var(--purple); border-color: var(--purple); }
+.pill.common { color: var(--accent); border-color: var(--accent); }
+.pill.gold { color: var(--gold); border-color: var(--gold); }
+
+/* ---------- tables ---------- */
+/* Wide tables scroll inside their own card instead of widening the page.
+   Cards get the scroll container so the layout never breaks on a phone. */
+.card { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+th { text-align: left; color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .5px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+td { padding: 9px 10px; border-bottom: 1px solid rgba(46, 55, 82, .5); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+
+/* ---------- hero cards ---------- */
+.hero-card { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.hero-card .lvl { font-size: 1.5rem; font-weight: 800; color: var(--gold); }
+.hero-card .lvl small { font-size: .85rem; color: var(--muted); font-weight: 600; }
+
+/* ---------- base gallery ---------- */
+.base-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+.base-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.base-card img { width: 100%; aspect-ratio: 16/10; object-fit: cover; background: var(--bg2); }
+.base-card .no-img {
+  width: 100%; aspect-ratio: 16/10; display: flex; align-items: center; justify-content: center;
+  background: repeating-linear-gradient(45deg, var(--bg2), var(--bg2) 12px, var(--card2) 12px, var(--card2) 24px);
+  color: var(--muted); font-weight: 700;
+}
+.base-card .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 26px; text-align: center;
+  color: var(--muted); cursor: pointer; transition: .15s;
+}
+.drop-zone:hover, .drop-zone.dragover { border-color: var(--primary); color: var(--text); }
+
+/* ---------- chat ---------- */
+.chat-box {
+  display: flex; flex-direction: column; height: 62vh; min-height: 420px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+}
+.chat-msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.msg { max-width: 82%; padding: 12px 16px; border-radius: 14px; font-size: .92rem; line-height: 1.55; white-space: pre-wrap; }
+.msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.msg.bot { align-self: flex-start; background: var(--card2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.msg.bot strong { color: var(--gold); }
+.msg.thinking { color: var(--muted); font-style: italic; }
+.chat-input { display: flex; gap: 10px; padding: 14px; border-top: 1px solid var(--border); background: var(--bg2); }
+.chat-input input { flex: 1; }
+.suggestions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.suggestions button { font-size: .8rem; padding: 7px 12px; }
+
+details { margin-bottom: 14px; }
+summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: .88rem; }
+code {
+  background: var(--bg2); padding: 2px 6px; border-radius: 5px; font-size: .82rem;
+  /* long API paths / JSON snippets must wrap rather than widen the page */
+  overflow-wrap: anywhere; word-break: break-word;
+}

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CWL Helper — Clash Companion</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .clan-row { display: grid; grid-template-columns: 26px 1fr 74px 74px 74px 90px 34px; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid rgba(46,55,82,.5); }
+    .clan-row:last-child { border-bottom: none; }
+    .clan-row.us { background: rgba(207,56,56,.10); border-left: 3px solid var(--primary); }
+    .clan-row .seed { font-weight: 800; color: var(--muted); text-align: center; }
+    .clan-row.promote .seed { color: var(--green); }
+    .clan-row.demote .seed { color: var(--red); }
+    .clan-row .num { text-align: center; font-weight: 700; }
+    .clan-row .lbl { display: none; }
+    @media (max-width: 780px) {
+      .clan-row { grid-template-columns: 26px 1fr 60px; row-gap: 4px; }
+      .clan-row .lbl { display: inline; color: var(--muted); font-size: .72rem; margin-right: 4px; }
+    }
+    .strength-bar { height: 6px; background: var(--bg2); border-radius: 4px; overflow: hidden; margin-top: 5px; }
+    .strength-bar > div { height: 100%; border-radius: 4px; }
+    .verdict { padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border); background: var(--card2); }
+    .verdict .pct { font-size: 2.6rem; font-weight: 800; line-height: 1; }
+    .matchup { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; padding: 12px; background: var(--card2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
+    .matchup .vs { font-weight: 800; color: var(--muted); font-size: .8rem; }
+    .player-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: .78rem; margin: 2px; }
+    .player-chip .th { font-weight: 800; color: var(--gold); }
+    .tier-label { font-size: .7rem; font-weight: 800; padding: 2px 7px; border-radius: 5px; }
+    .t-strong { background: var(--green); color: #063d22; }
+    .t-mid { background: var(--gold); color: #3a2c00; }
+    .t-weak { background: var(--muted); color: #1c2233; }
+    .day-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+    .clan-row:hover { background: rgba(255,255,255,.03); }
+    .clan-detail { padding: 18px; background: var(--bg2); border-left: 3px solid var(--primary); border-bottom: 1px solid var(--border); }
+    .clan-detail h4 { font-size: .95rem; color: var(--primary); }
+    .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; }
+    .clan-detail table th { position: sticky; top: 0; background: var(--bg2); z-index: 1; }
+    .pill.small { font-size: .65rem; padding: 1px 6px; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .dot-on { background: var(--green); } .dot-off { background: var(--muted); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo"><span class="logo-slot"><img src="assets/logo.jpeg" alt="logo" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='assets/logo.png'}else{this.parentElement.classList.add('empty');this.remove()}" /></span>Clash<span>Companion</span></div>
+    <div class="nav-links">
+    <a href="index.html">Village Analyzer</a>
+    <a href="bases.html">Legend Bases</a>
+    <a href="coach.html">AI Coach</a>
+    <a href="cwl.html">CWL Planner</a>
+    <a href="cwl-group.html" class="active">CWL Helper</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge">Meta data: July 2026 · TH18</div>
+  </nav>
+
+  <main>
+    <h1>CWL <span class="gold">Helper</span></h1>
+    <p class="subtitle">
+      Starting a new CWL season? Enter the 8 clan tags in your group and this page pulls each
+      clan's level, war wins, win streak and full roster, ranks the group by strength, estimates
+      your <strong>promotion probability</strong> (top 2 go up), and suggests which of your players
+      to field on each war day — stronger opponents get your stronger attackers.
+      <span id="proxyStatus" class="pill" style="margin-left:6px"><span class="status-dot dot-off"></span>checking data source…</span>
+    </p>
+
+    <!-- ── Step 1: season setup ─────────────────────────────── -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:flex-start">
+        <h3 style="margin:0">1 · Season setup</h3>
+        <div class="row">
+          <select id="leagueSelect" style="max-width:220px">
+            <option value="Champion League I">Champion League I</option>
+            <option value="Champion League II">Champion League II</option>
+            <option value="Champion League III">Champion League III</option>
+            <option value="Master League I" selected>Master League I</option>
+            <option value="Master League II">Master League II</option>
+            <option value="Master League III">Master League III</option>
+            <option value="Crystal League I">Crystal League I</option>
+            <option value="Crystal League II">Crystal League II</option>
+            <option value="Crystal League III">Crystal League III</option>
+            <option value="Gold League I">Gold League I</option>
+            <option value="Gold League II">Gold League II</option>
+            <option value="Gold League III">Gold League III</option>
+            <option value="Silver/Bronze">Silver / Bronze</option>
+          </select>
+          <select id="warSizeSelect" style="max-width:150px">
+            <option value="15">15 v 15</option>
+            <option value="30">30 v 30</option>
+            <option value="20">20 v 20</option>
+            <option value="10">10 v 10</option>
+            <option value="5">5 v 5</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="myClanTag">Your clan tag</label>
+      <div class="row">
+        <input type="text" id="myClanTag" placeholder="#YOURCLAN" style="max-width:220px" />
+        <button id="loadMyClanBtn">Load my clan</button>
+        <button id="autoGroupBtn" class="secondary">Auto-detect group (live CWL)</button>
+      </div>
+      <p class="muted small" style="margin-top:8px">
+        “Auto-detect group” works once the CWL round has been matched and needs the live proxy —
+        otherwise add the 7 opponent tags manually below.
+      </p>
+    </div>
+
+    <!-- ── Step 2: opponents ────────────────────────────────── -->
+    <div class="card">
+      <h3>2 · The 8 clans in your group</h3>
+      <div class="row" style="margin-top:10px">
+        <input type="text" id="opponentTag" placeholder="#OPPONENTTAG" style="max-width:220px" />
+        <button id="addClanBtn">Add clan</button>
+        <button id="manualClanBtn" class="secondary">Add manually</button>
+        <button id="clearGroupBtn" class="danger">Clear group</button>
+        <span id="groupMsg" class="muted small"></span>
+      </div>
+
+      <div id="manualForm" style="display:none; margin-top:14px; padding:14px; background:var(--bg2); border:1px solid var(--border); border-radius:10px">
+        <div class="grid3">
+          <div><label for="mName">Clan name</label><input type="text" id="mName" placeholder="Iron Legion" /></div>
+          <div><label for="mTag">Tag</label><input type="text" id="mTag" placeholder="#2QRPLG0V" /></div>
+          <div><label for="mLevel">Clan level</label><input type="text" id="mLevel" placeholder="18" /></div>
+          <div><label for="mWins">War wins</label><input type="text" id="mWins" placeholder="342" /></div>
+          <div><label for="mStreak">Win streak</label><input type="text" id="mStreak" placeholder="4" /></div>
+          <div><label for="mAvgTH">Avg Town Hall</label><input type="text" id="mAvgTH" placeholder="16.4" /></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button id="saveManualBtn">Save clan</button>
+          <button id="cancelManualBtn" class="secondary">Cancel</button>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <div class="clan-row" style="border-bottom:1px solid var(--border); padding-bottom:8px">
+          <div class="muted small">#</div>
+          <div class="muted small" style="text-transform:uppercase; letter-spacing:.5px; font-size:.72rem">Clan</div>
+          <div class="muted small num" style="font-size:.72rem">LVL</div>
+          <div class="muted small num" style="font-size:.72rem">WINS</div>
+          <div class="muted small num" style="font-size:.72rem">STREAK</div>
+          <div class="muted small num" style="font-size:.72rem">STRENGTH</div>
+          <div></div>
+        </div>
+        <div id="clanList"></div>
+        <p class="muted" id="emptyGroup" style="padding:24px 0; text-align:center">
+          No clans added yet — add your clan plus the 7 opponents. ☝️
+        </p>
+      </div>
+    </div>
+
+    <!-- ── Step 3: verdict ──────────────────────────────────── -->
+    <div id="analysisSection" style="display:none">
+      <h2>3 · Group difficulty &amp; your odds</h2>
+      <div class="grid2">
+        <div class="verdict">
+          <div class="muted small">Probability of finishing top 2 (promotion)</div>
+          <div class="pct" id="promoPct">—</div>
+          <div class="progress" style="margin-top:10px"><div id="promoBar" style="width:0%"></div></div>
+          <p class="muted small" id="promoNote" style="margin-top:10px"></p>
+        </div>
+        <div class="verdict">
+          <div class="muted small">Group difficulty</div>
+          <div class="pct" id="difficultyLabel" style="font-size:1.7rem">—</div>
+          <p class="muted small" id="difficultyNote" style="margin-top:10px"></p>
+          <div style="margin-top:12px">
+            <div class="muted small">Your projected seed</div>
+            <div style="font-size:1.3rem; font-weight:800" id="projectedSeed">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="riskBreakdown"></div>
+    </div>
+
+    <!-- ── Step 4: roster ───────────────────────────────────── -->
+    <div id="rosterSection" style="display:none">
+      <h2>4 · Your roster</h2>
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <p class="muted small" style="margin:0">
+            Loaded from your clan. Players are tiered by Town Hall + hero levels; toggle anyone
+            who isn't participating this season.
+          </p>
+          <button id="refreshRosterBtn" class="secondary">Reload roster</button>
+        </div>
+        <div id="rosterList" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <!-- ── Step 5: assignments ──────────────────────────────── -->
+    <div id="assignSection" style="display:none">
+      <h2>5 · War-day assignments</h2>
+      <p class="muted" style="margin-top:-8px; margin-bottom:16px">
+        Auto-matched: your strongest attackers are saved for the toughest opponents, weaker
+        players get the easier days. Change any day's roster with the dropdowns.
+      </p>
+      <div class="row" style="margin-bottom:14px">
+        <button id="autoAssignBtn">Auto-assign all 7 days</button>
+        <button id="clearAssignBtn" class="secondary">Clear assignments</button>
+      </div>
+      <div id="dayList"></div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/cwl-group.js"></script>
+</body>
+</html>
