@@ -2,9 +2,34 @@ const https = require("https");
 
 const API_KEY = process.env.COC_API_KEY || "";
 
+// Route through RoyaleAPI's proxy so the key is IP-locked to 45.79.218.79.
+// Serverless egress IPs are not static, so calling api.clashofclans.com
+// directly from here would fail the key's IP check.
+const COC_HOST = process.env.COC_API_HOST || "cocproxy.royaleapi.dev";
+
 // Simple in-memory cache
 const cache = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Per-IP rate limit. Only spans a single warm instance — serverless gives no
+// shared state — so it blunts casual scraping but is not a hard guarantee.
+const RATE_LIMIT = Number(process.env.RATE_LIMIT || 30); // requests per window
+const RATE_WINDOW = 60 * 1000;
+const hits = new Map();
+
+function rateLimited(ip) {
+  const now = Date.now();
+  for (const [k, v] of hits) {
+    if (now - v.start >= RATE_WINDOW) hits.delete(k);
+  }
+  const entry = hits.get(ip);
+  if (!entry || now - entry.start >= RATE_WINDOW) {
+    hits.set(ip, { start: now, count: 1 });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_LIMIT;
+}
 
 function getCached(key) {
   const entry = cache[key];
@@ -25,7 +50,7 @@ function cocGet(apiPath) {
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
-        hostname: "api.clashofclans.com",
+        hostname: COC_HOST,
         path: "/v1" + apiPath,
         method: "GET",
         headers: { Authorization: "Bearer " + API_KEY, Accept: "application/json" },
@@ -71,6 +96,17 @@ exports.handler = async (event, context) => {
       statusCode: 200,
       headers,
       body: JSON.stringify({ ok: true, hasKey: !!API_KEY })
+    };
+  }
+
+  const ip = (event.headers["x-nf-client-connection-ip"]
+    || (event.headers["x-forwarded-for"] || "").split(",")[0].trim()
+    || "unknown");
+  if (rateLimited(ip)) {
+    return {
+      statusCode: 429,
+      headers: { ...headers, "Retry-After": "60" },
+      body: JSON.stringify({ error: "rate_limited", message: "Too many requests. Try again in a minute." })
     };
   }
 

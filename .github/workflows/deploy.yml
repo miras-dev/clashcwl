@@ -20,12 +20,17 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+      # Stage only what the browser needs, then sync that. An allowlist means a
+      # new file (or a stray key) is never published just by existing in the repo.
+      - name: Stage public files
+        run: |
+          mkdir -p _site
+          cp *.html _site/
+          cp -r css js assets _site/
+
       - name: Upload to S3
         run: |
-          aws s3 sync . s3://${{ secrets.S3_BUCKET }} \
-            --delete \
-            --exclude ".git/*" \
-            --exclude ".github/*"
+          aws s3 sync _site s3://${{ secrets.S3_BUCKET }} --delete
 
       - name: Invalidate CloudFront
         run: |

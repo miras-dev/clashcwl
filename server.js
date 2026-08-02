@@ -3,8 +3,12 @@
  * Why a proxy? The official CoC API blocks direct browser calls (no CORS headers)
  * and requires an IP-locked key that must never be shipped to the client.
  *
- * Setup — get a key at https://developer.clashofclans.com (whitelist your IP),
- * then supply it either way:
+ * Requests go through the RoyaleAPI proxy rather than api.clashofclans.com, so
+ * the key is locked to the proxy's IP (45.79.218.79) instead of this machine's.
+ * That keeps the same key working from anywhere — laptop, Lambda, Netlify.
+ *
+ * Setup — get a key at https://developer.clashofclans.com (whitelist
+ * 45.79.218.79, not your own IP), then supply it either way:
  *   • put it in a `.coc-key` file next to this script (gitignored), or
  *   • export COC_API_KEY="eyJ0eXAi..."
  * Then: node server.js      → http://localhost:8642
@@ -27,9 +31,38 @@ function loadKey() {
 }
 const API_KEY = loadKey();
 
+// Route through RoyaleAPI's proxy so the key is IP-locked to 45.79.218.79
+// rather than to whatever host happens to be running this.
+const COC_HOST = process.env.COC_API_HOST || "cocproxy.royaleapi.dev";
+
 // Simple in-memory cache
 const cache = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Per-IP rate limit. The upstream key is a shared, throttled resource, so one
+// scraper hitting /api/* directly would exhaust it for every real user.
+const RATE_LIMIT = Number(process.env.RATE_LIMIT || 30); // requests per window
+const RATE_WINDOW = 60 * 1000;
+const hits = new Map();
+
+function rateLimited(ip) {
+  const now = Date.now();
+  const entry = hits.get(ip);
+  if (!entry || now - entry.start >= RATE_WINDOW) {
+    hits.set(ip, { start: now, count: 1 });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_LIMIT;
+}
+
+// Drop stale buckets so the map can't grow without bound.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of hits) {
+    if (now - entry.start >= RATE_WINDOW) hits.delete(ip);
+  }
+}, RATE_WINDOW).unref();
 
 function getCached(key) {
   const entry = cache[key];
@@ -61,7 +94,7 @@ function cocGet(apiPath) {
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
-        hostname: "api.clashofclans.com",
+        hostname: COC_HOST,
         path: "/v1" + apiPath,
         method: "GET",
         headers: { Authorization: "Bearer " + API_KEY, Accept: "application/json" },
@@ -91,6 +124,14 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/status") {
       res.end(JSON.stringify({ ok: true, hasKey: !!API_KEY }));
+      return;
+    }
+
+    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim()
+      || req.socket.remoteAddress || "unknown";
+    if (rateLimited(ip)) {
+      res.writeHead(429, { "Retry-After": "60" });
+      res.end(JSON.stringify({ error: "rate_limited", message: "Too many requests. Try again in a minute." }));
       return;
     }
     if (!API_KEY) {
