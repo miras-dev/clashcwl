@@ -1,2 +1,6 @@
 .coc-key
 node_modules/
+js/idmap.js
+assets/*
+!assets/logo.jpeg
+!assets/logo.png

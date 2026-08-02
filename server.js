@@ -27,6 +27,25 @@ function loadKey() {
 }
 const API_KEY = loadKey();
 
+// Simple in-memory cache
+const cache = {};
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+function getCached(key) {
+  const entry = cache[key];
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+    return entry.data;
+  }
+  return null;
+}
+
+function setCached(key, data) {
+  cache[key] = {
+    timestamp: Date.now(),
+    data
+  };
+}
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -85,6 +104,14 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/clan-deep") {
       const tag = (url.searchParams.get("tag") || "").trim().toUpperCase().replace(/^#/, "");
       if (!tag) { res.writeHead(400); res.end(JSON.stringify({ error: "bad_request" })); return; }
+
+      const cacheKey = `clan-deep-${tag}`;
+      const cached = getCached(cacheKey);
+      if (cached) {
+        res.end(JSON.stringify(cached));
+        return;
+      }
+
       try {
         const clanRes = await cocGet(`/clans/%23${encodeURIComponent(tag)}`);
         if (clanRes.status !== 200) { res.writeHead(clanRes.status); res.end(JSON.stringify(clanRes.json)); return; }
@@ -120,7 +147,7 @@ const server = http.createServer(async (req, res) => {
           players.push(...wave.filter(Boolean));
         }
 
-        res.end(JSON.stringify({
+        const responseBody = {
           tag: clan.tag, name: clan.name, level: clan.clanLevel,
           warWins: clan.warWins || 0, warTies: clan.warTies || 0, warLosses: clan.warLosses || 0,
           winStreak: clan.warWinStreak || 0,
@@ -132,7 +159,10 @@ const server = http.createServer(async (req, res) => {
           badge: clan.badgeUrls ? clan.badgeUrls.small : null,
           memberCount: clan.members || list.length,
           players,
-        }));
+        };
+
+        setCached(cacheKey, responseBody);
+        res.end(JSON.stringify(responseBody));
       } catch (e) {
         res.writeHead(502);
         res.end(JSON.stringify({ error: "upstream", message: e.message }));
@@ -151,7 +181,17 @@ const server = http.createServer(async (req, res) => {
 
       if (!apiPath) { res.writeHead(400); res.end(JSON.stringify({ error: "bad_request", message: "Unknown endpoint or missing ?tag=" })); return; }
 
+      const cacheKey = `${url.pathname}-${tag}`;
+      const cached = getCached(cacheKey);
+      if (cached) {
+        res.end(JSON.stringify(cached));
+        return;
+      }
+
       const { status, json } = await cocGet(apiPath);
+      if (status === 200) {
+        setCached(cacheKey, json);
+      }
       res.writeHead(status);
       res.end(JSON.stringify(json));
     } catch (e) {

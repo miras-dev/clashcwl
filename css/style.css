@@ -246,3 +246,16 @@ code {
   /* long API paths / JSON snippets must wrap rather than widen the page */
   overflow-wrap: anywhere; word-break: break-word;
 }
+
+/* ---------- github link ---------- */
+nav a.github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  margin-left: 10px;
+}
