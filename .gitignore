@@ -4,3 +4,6 @@ js/idmap.js
 assets/*
 !assets/logo.jpeg
 !assets/logo.png
+
+# build output
+clashcwl-api.zip

@@ -10,9 +10,11 @@
  *
  * Setup — set COC_API_KEY in the function's environment variables.
  */
-const https = require("https");
+import https from "node:https";
 
-const API_KEY = process.env.COC_API_KEY || "";
+// Trimmed: a key pasted into the console with a stray newline or tab would
+// otherwise fail as "Invalid character in header content".
+const API_KEY = (process.env.COC_API_KEY || "").trim();
 const COC_HOST = process.env.COC_API_HOST || "cocproxy.royaleapi.dev";
 
 // Browsers only need this from our own origins; the API Gateway usage plan is
@@ -81,15 +83,27 @@ function cocGet(apiPath) {
   });
 }
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
+  // Off by default: the event carries the caller's IP and user-agent, and at
+  // production volume logging every one of them costs money for no benefit.
+  // Set DEBUG=1 in the function's environment to turn it back on.
+  if (process.env.DEBUG) console.log("EVENT:", JSON.stringify(event));
+
   // Works under both the HTTP API (v2) and REST API (v1) payload formats.
-  const rawPath = event.rawPath || event.path || "";
   const method = event.requestContext?.http?.method || event.httpMethod || "GET";
   const query = event.queryStringParameters || {};
   const origin = (event.headers?.origin) || (event.headers?.Origin) || "";
   const headers = corsHeaders(origin);
 
-  const path = rawPath.replace(/^\/api/, "").replace(/\/$/, "") || "/";
+  // Under the ANY /api/{proxy+} route, API Gateway resolves the path for us.
+  // The fallback covers direct invokes (console tests) and strips the stage
+  // prefix that the default execute-api domain adds but a custom domain doesn't.
+  const path = event.pathParameters?.proxy
+    ? "/" + event.pathParameters.proxy
+    : (event.rawPath || event.path || "")
+        .replace(/^\/[^/]+/, "")
+        .replace(/^\/api/, "")
+        .replace(/\/$/, "") || "/";
 
   const reply = (statusCode, obj) => ({
     statusCode,
