@@ -39,8 +39,15 @@
     .clan-row .num { text-align: center; font-weight: 700; }
     .clan-row .lbl { display: none; }
     @media (max-width: 780px) {
-      .clan-row { grid-template-columns: 26px 1fr 60px; row-gap: 4px; }
+      /* Seed and name on the first line, every stat stacked under it with its
+         own label. Fixed stat columns used to overflow a 375px screen and cut
+         off Strength entirely. */
+      .clan-row { grid-template-columns: 26px 1fr; row-gap: 4px; }
       .clan-row .lbl { display: inline; color: var(--muted); font-size: .72rem; margin-right: 4px; }
+      .clan-row > :nth-child(n+3) { grid-column: 2; }
+      /* The header row is column titles only — the stacked rows carry their own
+         labels, so it has nothing left to say on a phone. */
+      .clan-row.head { display: none; }
     }
     .strength-bar { height: 6px; background: var(--bg2); border-radius: 4px; overflow: hidden; margin-top: 5px; }
     .strength-bar > div { height: 100%; border-radius: 4px; }
@@ -159,7 +166,7 @@
       </div>
 
       <div style="margin-top:16px">
-        <div class="clan-row" style="border-bottom:1px solid var(--border); padding-bottom:8px">
+        <div class="clan-row head" style="border-bottom:1px solid var(--border); padding-bottom:8px">
           <div class="muted small">#</div>
           <div class="muted small" style="text-transform:uppercase; letter-spacing:.5px; font-size:.72rem">Clan</div>
           <div class="muted small num" style="font-size:.72rem">LVL</div>

@@ -22,6 +22,16 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Nothing may be wider than the screen. body has overflow-x:hidden, but that
+   only hides the spill — the content is still cut off and unreadable, which is
+   what kept happening on phones. These three rules fix the cause instead:
+   flex/grid children may shrink below their content, media scales down, and
+   long unbroken strings (clan tags, URLs) wrap instead of forcing a wider box. */
+img, svg, video, canvas, table { max-width: 100%; }
+/* break-word only splits a word when it genuinely cannot fit, unlike
+   `anywhere`, which also breaks short words like WINS mid-string. */
+h1, h2, h3, h4, p, span, div, td, th, li { overflow-wrap: break-word; }
+
 body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   background: linear-gradient(180deg, var(--bg) 0%, #0b0e16 100%);
@@ -161,6 +171,13 @@ label { display: block; font-size: .85rem; color: var(--muted); margin: 12px 0 6
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 @media (max-width: 800px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+/* Grid and flex children default to min-width:auto, which lets their content
+   push them wider than the track — that is what made score bars and stat boxes
+   spill past the right edge of the phone. Allowing them to shrink means a
+   percentage width is always a percentage of the screen, never of the content. */
+.grid2 > *, .grid3 > *, .row > * { min-width: 0; }
+.grid2, .grid3 { max-width: 100%; }
 
 .muted { color: var(--muted); font-size: .88rem; line-height: 1.55; }
 .small { font-size: .8rem; }
