@@ -2,6 +2,12 @@
 
 const $ = (id) => document.getElementById(id);
 
+// Roster names are typed by the user and persisted to localStorage, so they are
+// the one field here that isn't ours. Escape before it reaches innerHTML.
+function escC(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 // 2026 CWL Medal Reference Data
 const LEAGUE_DATA = {
   "Bronze III": { base: 34, step: -4, bonus: 35, baseBonusPkgs: 1 },
@@ -627,9 +633,9 @@ function renderCartPanel() {
     const playerMedals = calculateMedals(activePlayer).total;
     const diff = playerMedals - totalCost;
     if (diff >= 0) {
-      $("cartComparison").innerHTML = `<span class="yield-max" style="font-weight:700">✔ Affordable for ${activePlayer.name} (${diff} leftover)</span>`;
+      $("cartComparison").innerHTML = `<span class="yield-max" style="font-weight:700">✔ Affordable for ${escC(activePlayer.name)} (${diff} leftover)</span>`;
     } else {
-      $("cartComparison").innerHTML = `<span class="yield-low" style="font-weight:700">⚠️ Short of ${Math.abs(diff)} medals for ${activePlayer.name}</span>`;
+      $("cartComparison").innerHTML = `<span class="yield-low" style="font-weight:700">⚠️ Short of ${Math.abs(diff)} medals for ${escC(activePlayer.name)}</span>`;
     }
   } else {
     $("cartComparison").textContent = "";
