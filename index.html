@@ -12,6 +12,22 @@
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Village Analyzer — Clash Companion</title>
+  <meta name="description" content="Analyze your Clash of Clans village: hero levels, troop progress, and what to upgrade next. Free, no login required." />
+  <link rel="canonical" href="https://clashcwl.com/" />
+  <link rel="icon" type="image/jpeg" href="/assets/logo.jpeg" />
+  <link rel="apple-touch-icon" href="/assets/logo.jpeg" />
+  <meta name="theme-color" content="#0f1420" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Clash Companion" />
+  <meta property="og:title" content="Village Analyzer — Clash Companion" />
+  <meta property="og:description" content="Analyze your Clash of Clans village: hero levels, troop progress, and what to upgrade next. Free, no login required." />
+  <meta property="og:url" content="https://clashcwl.com/" />
+  <meta property="og:image" content="https://clashcwl.com/assets/logo.jpeg" />
+  <meta property="og:image:alt" content="Clash Companion logo" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Village Analyzer — Clash Companion" />
+  <meta name="twitter:description" content="Analyze your Clash of Clans village: hero levels, troop progress, and what to upgrade next. Free, no login required." />
+  <meta name="twitter:image" content="https://clashcwl.com/assets/logo.jpeg" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -19,8 +35,6 @@
     <div class="logo"><span class="logo-slot"><img src="assets/logo.jpeg" alt="logo" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='assets/logo.png'}else{this.parentElement.classList.add('empty');this.remove()}" /></span>Clash<span>Companion</span></div>
     <div class="nav-links">
     <a href="index.html" class="active">Village Analyzer</a>
-    <a href="bases.html">Legend Bases</a>
-    <a href="coach.html">AI Coach</a>
     <a href="cwl.html">CWL Planner</a>
     <a href="cwl-group.html">CWL Helper</a>
     </div>
@@ -49,14 +63,6 @@
       <a class="tool-card" href="cwl-group.html">
         <div class="tool-ico">⚔️</div>
         <div><strong>CWL Helper</strong><span class="muted small">Rank your group, plan all 7 war days</span></div>
-      </a>
-      <a class="tool-card" href="coach.html">
-        <div class="tool-ico">💬</div>
-        <div><strong>AI Coach</strong><span class="muted small">Ask anything about the current meta</span></div>
-      </a>
-      <a class="tool-card" href="bases.html">
-        <div class="tool-ico">🛡️</div>
-        <div><strong>Legend Bases</strong><span class="muted small">Save and share your layouts</span></div>
       </a>
     </div>
 
@@ -134,11 +140,76 @@
 
       <h2>Recommended Armies for your Town Hall</h2>
       <div id="armySuggestions"></div>
+
+      <h2 id="coach">Ask the <span class="gold">AI Coach</span></h2>
+      <p class="subtitle">
+        The coach knows the July 2026 game state<span id="playerStatus" class="pill gold" style="display:none"> and your village ✔</span>.
+        Ask about upgrade order, army comps, or hero equipment.
+      </p>
+
+      <details class="card" style="padding:16px 20px">
+        <summary>⚙️&nbsp;Coach settings — built-in coach vs AI-powered</summary>
+        <div style="margin-top:14px">
+          <p class="muted">
+            By default the coach answers instantly from the built-in July 2026 knowledge base.
+            For deeper, conversational coaching you can connect your own OpenAI API key — it's
+            stored only in this browser and sent only to <code>api.openai.com</code>. Every AI
+            answer is grounded in the same knowledge base plus your analyzed village.
+          </p>
+          <label for="apiKey">OpenAI API key (optional)</label>
+          <div class="row">
+            <input type="password" id="apiKey" placeholder="sk-..." style="max-width:360px" />
+            <select id="modelSelect" style="max-width:160px">
+              <option value="gpt-5-mini">gpt-5-mini</option>
+              <option value="gpt-5">gpt-5</option>
+              <option value="gpt-4.1">gpt-4.1</option>
+              <option value="gpt-4o">gpt-4o</option>
+            </select>
+            <button id="saveKeyBtn" class="secondary">Save</button>
+            <button id="clearKeyBtn" class="danger">Remove</button>
+            <span id="keyStatus" class="muted small"></span>
+          </div>
+        </div>
+      </details>
+
+      <details class="card" style="padding:16px 20px" id="kbSettingsDetails">
+        <summary>📦&nbsp;Game Release Data — edit local knowledge base</summary>
+        <div style="margin-top:14px">
+          <p class="muted">
+            This JSON represents the Clash of Clans release data (heroes, equipment, armies, updates, etc.) used by the coach to formulate answers. You can edit this JSON to update the coach's knowledge. It is stored in your browser's local storage.
+          </p>
+          <label for="kbJsonInput">Release Data JSON</label>
+          <textarea id="kbJsonInput" rows="12" style="font-family: monospace; font-size: 11px; margin-bottom:12px"></textarea>
+          <div class="row">
+            <button id="saveKbBtn" class="secondary">Save Release Data</button>
+            <button id="resetKbBtn" class="danger">Reset to Default</button>
+            <span id="kbStatus" class="muted small"></span>
+          </div>
+        </div>
+      </details>
+
+      <div class="suggestions" id="suggestions">
+        <button class="secondary">What should I upgrade first?</button>
+        <button class="secondary">Best army for my Town Hall?</button>
+        <button class="secondary">How should I spend my Ores?</button>
+        <button class="secondary">Which equipment matters most?</button>
+      </div>
+
+      <div class="chat-box">
+        <div class="chat-msgs" id="chatMsgs">
+          <div class="msg bot">Hey Chief! 👋 I've got your village loaded. Ask me what to upgrade next, which army suits your Town Hall, or how to spend your Ores.</div>
+        </div>
+        <div class="chat-input">
+          <input type="text" id="chatInput" placeholder="Ask your coach…" autocomplete="off" />
+          <button id="sendBtn">Send</button>
+        </div>
+      </div>
     </div>
   </main>
 
   <script src="js/idmap.js"></script>
   <script src="js/data.js"></script>
   <script src="js/analyzer.js"></script>
+  <script src="js/coach.js"></script>
 </body>
 </html>

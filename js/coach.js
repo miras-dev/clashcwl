@@ -4,9 +4,19 @@ const $c = (id) => document.getElementById(id);
 const chat = $c("chatMsgs");
 const history = []; // {role, content} for the OpenAI conversation
 
-/* ---------- player context ---------- */
-const player = loadPlayerData();
-if (player) $c("playerStatus").style.display = "inline-block";
+/* ---------- player context ----------
+   The coach now lives on the Analyzer page, where the village is saved after
+   the coach script has already run. Reading through a getter keeps every answer
+   bound to whatever is in storage at the moment the question is asked. */
+Object.defineProperty(globalThis, "player", { get: () => loadPlayerData() });
+
+// The village is analyzed after this script runs, so re-check on each render
+// rather than only at load.
+function refreshPlayerBadge() {
+  const el = $c("playerStatus");
+  if (el) el.style.display = player ? "inline-block" : "none";
+}
+refreshPlayerBadge();
 
 /* ---------- API key handling (OpenAI) ---------- */
 function getKey() { return localStorage.getItem("cc_openai_key") || ""; }

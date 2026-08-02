@@ -178,6 +178,9 @@ function bar(level, max, extraClass = "") {
 function render(data) {
   $("results").style.display = "block";
 
+  // The coach shares this page and needs to know a village just landed.
+  if (typeof refreshPlayerBadge === "function") refreshPlayerBadge();
+
   // export data has no per-TH caps — always show the KB's current game max
   if (data._source === "village-export") {
     (data.heroes || []).forEach(h => { const kb = kbFindHero(h.name); if (kb) h.maxLevel = kb.maxLevel; });

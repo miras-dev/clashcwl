@@ -27,6 +27,9 @@ jobs:
           mkdir -p _site
           cp *.html _site/
           cp -r css js assets _site/
+          cp robots.txt sitemap.xml _site/
+          # Legend Bases is parked until it has a data source behind it.
+          rm -f _site/bases.html
 
       - name: Upload to S3
         run: |

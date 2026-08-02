@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Hidden until it has a data source behind it.
+Disallow: /bases.html
+
+Sitemap: https://clashcwl.com/sitemap.xml
