@@ -228,3 +228,40 @@ function loadPlayerData() {
 function savePlayerData(obj) {
   localStorage.setItem("cc_player", JSON.stringify(obj));
 }
+
+/* Copy each table's column headings onto its body cells as data-label, which
+   the mobile stylesheet shows beside the value once rows stack vertically.
+   Doing it here keeps every render path from having to hand-write the labels.
+   A MutationObserver picks up tables built after load, since most of these
+   views re-render into innerHTML on user action. */
+function labelTableCells(root = document) {
+  root.querySelectorAll("table").forEach(table => {
+    const heads = [...table.querySelectorAll("thead th")].map(th => th.textContent.trim());
+    if (!heads.length) return;
+    table.querySelectorAll("tbody tr").forEach(tr => {
+      [...tr.children].forEach((td, i) => {
+        const label = heads[i];
+        // Skip index/action columns: their heading is decorative and the value
+        // speaks for itself, so a label would just add noise.
+        if (label && label !== "#" && !td.hasAttribute("data-label")) {
+          td.setAttribute("data-label", label);
+        }
+      });
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  labelTableCells();
+  new MutationObserver(muts => {
+    for (const m of muts) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.tagName === "TABLE" || node.querySelector?.("table")) {
+          labelTableCells(node.parentNode || document);
+          return;
+        }
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+});
