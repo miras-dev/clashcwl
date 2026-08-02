@@ -26,22 +26,29 @@ function normTag(t) {
 }
 
 /* ---------------- data source ---------------- */
+// The proxy is a separate origin in production (API Gateway → Lambda), so these
+// calls are absolute. On localhost `node server.js` serves both the pages and
+// /api, so same-origin relative paths are used there instead.
+const API_BASE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+  ? ""
+  : "https://api.clashcwl.com";
+
 async function checkProxy() {
   const el = $g("proxyStatus");
   try {
-    const r = await fetch("/api/status");
+    const r = await fetch(`${API_BASE}/api/status`);
     const j = await r.json();
     proxyLive = !!j.hasKey;
   } catch { proxyLive = false; }
   el.innerHTML = proxyLive
     ? `<span class="status-dot dot-on"></span>Live CoC API connected`
-    : `<span class="status-dot dot-off"></span>Manual mode — run <code>node server.js</code> with COC_API_KEY for live data`;
+    : `<span class="status-dot dot-off"></span>Manual mode — live data unavailable right now`;
   el.style.borderColor = proxyLive ? "var(--green)" : "var(--border)";
   el.style.color = proxyLive ? "var(--green)" : "var(--muted)";
 }
 
 async function apiGet(endpoint, tag) {
-  const r = await fetch(`/api/${endpoint}?tag=${encodeURIComponent(tag.replace(/^#/, ""))}`);
+  const r = await fetch(`${API_BASE}/api/${endpoint}?tag=${encodeURIComponent(tag.replace(/^#/, ""))}`);
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.message || j.reason || `HTTP ${r.status}`);
   return j;
