@@ -74,13 +74,18 @@ function playerScore(p) {
 
 // CoC War League ladder → 0-1 rating. This is the single best "how good is this
 // clan at CWL" signal the API gives us, because it's earned over many seasons.
+// Names and order match GET /warleagues exactly — a string that misses this
+// table scores as unknown, which used to hand Titan and Legend clans the
+// neutral fallback and rate them below Master I.
 const WAR_LEAGUE_RANK = {
-  "champion league i": 1.00, "champion league ii": 0.94, "champion league iii": 0.88,
-  "master league i": 0.82, "master league ii": 0.76, "master league iii": 0.70,
-  "crystal league i": 0.64, "crystal league ii": 0.58, "crystal league iii": 0.52,
-  "gold league i": 0.46, "gold league ii": 0.40, "gold league iii": 0.34,
-  "silver league i": 0.28, "silver league ii": 0.22, "silver league iii": 0.16,
-  "bronze league i": 0.12, "bronze league ii": 0.08, "bronze league iii": 0.04,
+  "legend league": 1.00,
+  "titan league i": 0.96, "titan league ii": 0.92, "titan league iii": 0.88,
+  "champion league i": 0.84, "champion league ii": 0.80, "champion league iii": 0.76,
+  "master league i": 0.72, "master league ii": 0.68, "master league iii": 0.64,
+  "crystal league i": 0.60, "crystal league ii": 0.56, "crystal league iii": 0.52,
+  "gold league i": 0.44, "gold league ii": 0.38, "gold league iii": 0.32,
+  "silver league i": 0.26, "silver league ii": 0.20, "silver league iii": 0.14,
+  "bronze league i": 0.10, "bronze league ii": 0.06, "bronze league iii": 0.02,
   "unranked": 0.30,
 };
 function warLeagueScore(name) {
@@ -703,6 +708,10 @@ $g("saveManualBtn").addEventListener("click", () => {
     warLosses: 0,
     winStreak: Number($g("mStreak").value) || 0,
     avgTH: Number($g("mAvgTH").value) || null,
+    // No API data for a manual clan, so seed it with the group's league from
+    // Season setup. Everyone in a CWL group shares a league, which is a far
+    // better estimate than the neutral "unknown" score.
+    warLeague: state.league || null,
     members: [], live: false,
   });
   ["mName", "mTag", "mLevel", "mWins", "mStreak", "mAvgTH"].forEach(id => ($g(id).value = ""));
