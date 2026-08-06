@@ -231,6 +231,23 @@
       <div class="card" id="riskBreakdown"></div>
     </div>
 
+    <!-- ── Who each clan actually fields, round by round ────── -->
+    <div id="roundsSection" style="display:none">
+      <h2>Round history — who they actually field</h2>
+      <div class="card">
+        <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px">
+          <p class="muted small" style="margin:0">
+            A clan's member list says little about its war line-up. This pulls every round played
+            so far and shows who was actually fielded, at which Town Hall — so you can see a clan's
+            core, how much it rotates, and what it is fielding right now.
+          </p>
+          <button id="loadRoundsBtn" class="secondary" style="flex:none">Load round history</button>
+        </div>
+        <div id="roundsMsg" class="muted small" style="margin-top:10px"></div>
+        <div id="roundsResult" style="margin-top:14px"></div>
+      </div>
+    </div>
+
     <!-- ── Step 4: roster ───────────────────────────────────── -->
     <div id="rosterSection" style="display:none">
       <h2>4 · Your roster</h2>

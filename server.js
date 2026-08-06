@@ -140,6 +140,29 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Round history lives in the Lambda (lambda/index.mjs). Rather than keep a
+    // second copy of that fan-out here, dev proxies to the deployed endpoint —
+    // so local and production always agree on this route.
+    if (url.pathname === "/api/cwl-rounds") {
+      const tag = (url.searchParams.get("tag") || "").trim().toUpperCase().replace(/^#/, "");
+      if (!tag) { res.writeHead(400); res.end(JSON.stringify({ error: "bad_request" })); return; }
+      try {
+        const upstream = await new Promise((resolve, reject) => {
+          https.get(`https://api.clashcwl.com/api/cwl-rounds?tag=${encodeURIComponent(tag)}`,
+            { timeout: 60000 }, (r) => {
+              let b = ""; r.on("data", c => b += c);
+              r.on("end", () => resolve({ status: r.statusCode, body: b }));
+            }).on("error", reject).on("timeout", function () { this.destroy(); reject(new Error("timeout")); });
+        });
+        res.writeHead(upstream.status);
+        res.end(upstream.body);
+      } catch (e) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: "upstream", message: e.message }));
+      }
+      return;
+    }
+
     // Deep clan profile: clan + every member's war stars / league / war preference.
     // Batched server-side so the browser makes one request instead of ~50.
     if (url.pathname === "/api/clan-deep") {

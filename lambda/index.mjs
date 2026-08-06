@@ -188,6 +188,103 @@ export const handler = async (event) => {
     }
   }
 
+  // Which players each clan in the group has actually fielded, round by round.
+  // The roster on paper says little — this is who they put in a war, with the
+  // Town Hall levels, so you can see a clan's real CWL line-up and how much it
+  // rotates before deciding who to field against them.
+  if (path === "/cwl-rounds") {
+    if (!tag) return reply(400, { error: "bad_request" });
+
+    const cacheKey = `cwl-rounds-${tag}`;
+    const cached = getCached(cacheKey);
+    if (cached) return reply(200, cached);
+
+    try {
+      const grpRes = await cocGet(`/clans/%23${encodeURIComponent(tag)}/currentwar/leaguegroup`);
+      if (grpRes.status !== 200) return reply(grpRes.status, grpRes.json);
+      const group = grpRes.json;
+
+      // '#0' marks a round that hasn't been drawn yet.
+      const rounds = (group.rounds || []).map(r => (r.warTags || []).filter(t => t && t !== "#0"));
+      const flat = rounds.flatMap((tags, i) => tags.map(t => ({ round: i + 1, warTag: t })));
+
+      const wars = [];
+      const WAVE = 6;
+      for (let i = 0; i < flat.length; i += WAVE) {
+        const wave = await Promise.all(flat.slice(i, i + WAVE).map(async ({ round, warTag }) => {
+          // A finished war is immutable, so it is worth caching on its own key
+          // and for far longer than the group summary around it.
+          const wk = `war-${warTag}`;
+          const hit = getCached(wk);
+          if (hit) return { round, war: hit };
+          try {
+            const w = await cocGet(`/clanwarleagues/wars/%23${encodeURIComponent(warTag.replace(/^#/, ""))}`);
+            if (w.status !== 200) return null;
+            const lean = ["clan", "opponent"].map(side => {
+              const c = w.json[side] || {};
+              return {
+                tag: c.tag, name: c.name,
+                stars: c.stars || 0,
+                destruction: c.destructionPercentage || 0,
+                members: (c.members || []).map(m => ({
+                  tag: m.tag, name: m.name, th: m.townhallLevel, pos: m.mapPosition,
+                })),
+              };
+            });
+            const war = { state: w.json.state, teamSize: w.json.teamSize, sides: lean };
+            if (w.json.state === "warEnded") setCached(wk, war);
+            return { round, war };
+          } catch { return null; }
+        }));
+        wars.push(...wave.filter(Boolean));
+      }
+
+      // Re-key by clan: for each clan, which rounds it played and who it fielded.
+      const byClan = {};
+      for (const { round, war } of wars) {
+        for (const side of war.sides) {
+          if (!side.tag) continue;
+          const e = byClan[side.tag] || (byClan[side.tag] = { tag: side.tag, name: side.name, rounds: [] });
+          e.rounds.push({
+            round, state: war.state, teamSize: war.teamSize,
+            stars: side.stars, destruction: side.destruction,
+            lineup: side.members.sort((a, b) => a.pos - b.pos),
+          });
+        }
+      }
+
+      for (const e of Object.values(byClan)) {
+        e.rounds.sort((a, b) => a.round - b.round);
+        // Appearance count per player — a 5/5 is a fixture, a 1/5 is a fill-in.
+        const seen = new Map();
+        for (const r of e.rounds) {
+          for (const m of r.lineup) {
+            const p = seen.get(m.tag) || { tag: m.tag, name: m.name, th: m.th, appearances: 0 };
+            p.appearances += 1; p.th = m.th; seen.set(m.tag, p);
+          }
+        }
+        e.roundsPlayed = e.rounds.length;
+        e.players = [...seen.values()].sort((a, b) => b.appearances - a.appearances || b.th - a.th);
+        // TH mix of the most recent line-up — what they are fielding right now.
+        const last = e.rounds[e.rounds.length - 1];
+        e.currentThMix = last ? last.lineup.reduce((m, p) => (m[p.th] = (m[p.th] || 0) + 1, m), {}) : {};
+      }
+
+      const responseBody = {
+        state: group.state,
+        season: group.season,
+        totalRounds: rounds.length,
+        roundsAvailable: rounds.filter(r => r.length).length,
+        clans: Object.values(byClan),
+      };
+
+      setCached(cacheKey, responseBody);
+      return reply(200, responseBody);
+    } catch (e) {
+      return reply(502, { error: "upstream", message: e.message });
+    }
+  }
+
   try {
     let apiPath = null;
     if (path === "/clan" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}`;

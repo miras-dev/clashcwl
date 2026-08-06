@@ -739,7 +739,72 @@ $g("autoAssignBtn").addEventListener("click", autoAssign);
 $g("clearAssignBtn").addEventListener("click", () => { state.assignments = {}; saveState(); renderAssignments(); });
 
 /* ---------------- init ---------------- */
-function renderAll() { renderClans(); renderAnalysis(); renderRoster(); renderAssignments(); }
+/* ---------------- round history ----------------
+   Who each clan has actually fielded so far this CWL. The member list on a clan
+   is everyone in it; this is the 15 (or 30) they chose to put in a war. */
+function renderRounds() {
+  const d = state.rounds;
+  $g("roundsSection").style.display = state.myTag ? "block" : "none";
+  if (!d) return;
+
+  const mine = normTag(state.myTag);
+  const clans = d.clans.slice().sort((a, b) =>
+    (normTag(b.tag) === mine) - (normTag(a.tag) === mine) || a.name.localeCompare(b.name));
+
+  $g("roundsResult").innerHTML = clans.map(c => {
+    const isUs = normTag(c.tag) === mine;
+    const mix = Object.entries(c.currentThMix).sort((a, b) => b[0] - a[0])
+      .map(([th, n]) => `<span class="player-chip"><span class="th">TH${th}</span>×${n}</span>`).join("");
+
+    // Split the pool: everyone who played every round is the core, the rest rotate.
+    const core = c.players.filter(p => p.appearances === c.roundsPlayed);
+    const rot  = c.players.filter(p => p.appearances < c.roundsPlayed);
+
+    const rows = c.players.map(p => `<tr>
+      <td><strong>${escG(p.name)}</strong><div class="muted small">${escG(p.tag)}</div></td>
+      <td><span class="player-chip"><span class="th">TH${p.th}</span></span></td>
+      <td><strong style="color:${p.appearances === c.roundsPlayed ? "var(--green)" : "var(--muted)"}">${p.appearances} / ${c.roundsPlayed}</strong></td>
+    </tr>`).join("");
+
+    return `<details class="card" style="padding:14px 16px;margin-bottom:10px"${isUs ? " open" : ""}>
+      <summary><strong>${escG(c.name)}</strong>${isUs ? ` <span class="pill" style="color:var(--primary-text);border-color:var(--primary)">YOU</span>` : ""}
+        <span class="muted small"> — ${c.roundsPlayed} round${c.roundsPlayed === 1 ? "" : "s"} played</span></summary>
+      <div style="margin-top:12px">
+        <div class="muted small" style="margin-bottom:6px">Currently fielding</div>
+        <div style="margin-bottom:12px">${mix || '<span class="muted small">—</span>'}</div>
+        <p class="muted small" style="margin-bottom:10px">
+          ${core.length} player${core.length === 1 ? "" : "s"} in every round${rot.length ? `, ${rot.length} rotated in and out` : " — no rotation so far"}.
+        </p>
+        <table><thead><tr><th>Player</th><th>TH</th><th>Rounds</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </details>`;
+  }).join("");
+}
+
+async function loadRounds() {
+  if (!state.myTag) return roundsMsg("Set your clan tag first.", "error");
+  roundsMsg("Pulling every round in your group — this takes ~20s…", "busy");
+  $g("loadRoundsBtn").disabled = true;
+  try {
+    state.rounds = await apiGet("cwl-rounds", state.myTag);
+    saveState(); renderRounds();
+    roundsMsg(`✔ ${state.rounds.roundsAvailable} of ${state.rounds.totalRounds} rounds loaded.`, "ok");
+  } catch (e) {
+    roundsMsg("⚠️ " + e.message, "error");
+  } finally {
+    $g("loadRoundsBtn").disabled = false;
+  }
+}
+
+function roundsMsg(text, kind) {
+  const el = $g("roundsMsg");
+  el.innerHTML = kind === "busy" ? `<span class="spinner dark"></span>${text}` : text;
+  el.style.color = kind === "error" ? "var(--red)" : kind === "ok" ? "var(--green)" : "var(--muted)";
+}
+
+$g("loadRoundsBtn").addEventListener("click", loadRounds);
+
+function renderAll() { renderClans(); renderAnalysis(); renderRoster(); renderAssignments(); renderRounds(); }
 
 $g("myClanTag").value = state.myTag || "";
 $g("leagueSelect").value = state.league || "Master League I";
