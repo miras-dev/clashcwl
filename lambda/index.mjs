@@ -226,9 +226,17 @@ export const handler = async (event) => {
                 tag: c.tag, name: c.name,
                 stars: c.stars || 0,
                 destruction: c.destructionPercentage || 0,
-                members: (c.members || []).map(m => ({
-                  tag: m.tag, name: m.name, th: m.townhallLevel, pos: m.mapPosition,
-                })),
+                members: (c.members || []).map(m => {
+                  // In CWL each player gets one attack, but sum defensively in
+                  // case a war ever grants more.
+                  const atk = m.attacks || [];
+                  return {
+                    tag: m.tag, name: m.name, th: m.townhallLevel, pos: m.mapPosition,
+                    attacks: atk.length,
+                    stars: atk.reduce((a, x) => a + (x.stars || 0), 0),
+                    destruction: atk.reduce((a, x) => a + (x.destructionPercentage || 0), 0),
+                  };
+                }),
               };
             });
             const war = { state: w.json.state, teamSize: w.json.teamSize, sides: lean };
@@ -259,12 +267,28 @@ export const handler = async (event) => {
         const seen = new Map();
         for (const r of e.rounds) {
           for (const m of r.lineup) {
-            const p = seen.get(m.tag) || { tag: m.tag, name: m.name, th: m.th, appearances: 0 };
-            p.appearances += 1; p.th = m.th; seen.set(m.tag, p);
+            const p = seen.get(m.tag) || {
+              tag: m.tag, name: m.name, th: m.th,
+              appearances: 0, stars: 0, attacks: 0, destruction: 0,
+            };
+            p.appearances += 1; p.th = m.th;
+            p.stars += m.stars || 0;
+            p.attacks += m.attacks || 0;
+            p.destruction += m.destruction || 0;
+            seen.set(m.tag, p);
           }
         }
+        // A player fielded in a war that has not started yet has no attack to
+        // judge, so average over attacks used rather than rounds appeared.
+        for (const p of seen.values()) {
+          p.avgStars = p.attacks ? +(p.stars / p.attacks).toFixed(2) : null;
+          p.avgDestruction = p.attacks ? Math.round(p.destruction / p.attacks) : null;
+        }
         e.roundsPlayed = e.rounds.length;
-        e.players = [...seen.values()].sort((a, b) => b.appearances - a.appearances || b.th - a.th);
+        e.players = [...seen.values()].sort((a, b) =>
+          b.stars - a.stars || b.appearances - a.appearances || b.th - a.th);
+        e.totalStars = e.players.reduce((a, p) => a + p.stars, 0);
+        e.totalAttacks = e.players.reduce((a, p) => a + p.attacks, 0);
         // TH mix of the most recent line-up — what they are fielding right now.
         const last = e.rounds[e.rounds.length - 1];
         e.currentThMix = last ? last.lineup.reduce((m, p) => (m[p.th] = (m[p.th] || 0) + 1, m), {}) : {};

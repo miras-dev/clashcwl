@@ -763,7 +763,10 @@ function renderRounds() {
     const rows = c.players.map(p => `<tr>
       <td><strong>${escG(p.name)}</strong><div class="muted small">${escG(p.tag)}</div></td>
       <td><span class="player-chip"><span class="th">TH${p.th}</span></span></td>
-      <td><strong style="color:${p.appearances === c.roundsPlayed ? "var(--green)" : "var(--muted)"}">${p.appearances} / ${c.roundsPlayed}</strong></td>
+      <td><strong style="color:var(--gold)">⭐ ${p.stars ?? 0}</strong>${
+        p.avgStars != null ? `<div class="muted small">${p.avgStars} avg · ${p.avgDestruction}%</div>` : ""}</td>
+      <td><strong style="color:${p.appearances === c.roundsPlayed ? "var(--green)" : "var(--muted)"}">${p.appearances} / ${c.roundsPlayed}</strong>${
+        p.attacks ? `<div class="muted small">${p.attacks} attack${p.attacks === 1 ? "" : "s"}</div>` : ""}</td>
     </tr>`).join("");
 
     return `<details class="card" style="padding:14px 16px;margin-bottom:10px"${isUs ? " open" : ""}>
@@ -774,8 +777,10 @@ function renderRounds() {
         <div style="margin-bottom:12px">${mix || '<span class="muted small">—</span>'}</div>
         <p class="muted small" style="margin-bottom:10px">
           ${core.length} player${core.length === 1 ? "" : "s"} in every round${rot.length ? `, ${rot.length} rotated in and out` : " — no rotation so far"}.
+          ${c.totalAttacks ? `<strong style="color:var(--gold)">⭐ ${c.totalStars}</strong> from ${c.totalAttacks} attacks
+            <span class="muted">(${(c.totalStars / c.totalAttacks).toFixed(2)} per attack)</span>.` : ""}
         </p>
-        <table><thead><tr><th>Player</th><th>TH</th><th>Rounds</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>Player</th><th>TH</th><th>Stars</th><th>Rounds</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </details>`;
   }).join("");
