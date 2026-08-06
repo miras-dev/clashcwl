@@ -178,8 +178,10 @@ function bar(level, max, extraClass = "") {
 function render(data) {
   $("results").style.display = "block";
 
-  // The coach shares this page and needs to know a village just landed.
+  // The coach and the ZapQuake planner share this page and both key off the
+  // village that was just saved.
   if (typeof refreshPlayerBadge === "function") refreshPlayerBadge();
+  if (typeof renderZapQuake === "function") renderZapQuake();
 
   // export data has no per-TH caps — always show the KB's current game max
   if (data._source === "village-export") {
