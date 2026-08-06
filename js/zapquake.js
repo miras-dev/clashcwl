@@ -1,91 +1,93 @@
-/* ZapQuake planner — "can I kill this with the spells I actually have?"
+/* ZapQuake planner — "can I kill this with what I actually have?"
  *
- * The answer people want is yes/no plus a reason, not a grid of every
- * combination that theoretically works. So this leads with one recommendation
- * against the player's own spell levels and shows the arithmetic behind it.
+ * Answers with one recommendation against the player's own spell and equipment
+ * levels, then shows the arithmetic. The reasoning is the part people miss, so
+ * it is on screen rather than hidden behind the result.
  *
- * ── DATA ACCURACY ───────────────────────────────────────────────────────────
- * The Clash API exposes a player's spell LEVELS but no balance data — there is
- * no endpoint for spell damage or building hitpoints (/spells, /buildings and
- * /defenses all 404). Every number below is therefore hand-entered and must be
- * checked against the game after each balance patch. A wrong value here tells
- * someone a combo works when it does not, which costs them a war attack, so
- * VERIFIED is flipped to true only once a human has confirmed the tables.
+ * All balance numbers come from js/zqdata.js, generated from the
+ * clash-of-clans-data package — the game's own values, not hand-entered ones.
  */
 
-const ZQ_VERIFIED = false; // ← set true only after checking every value in-game
-
-// Damage of one Lightning Spell, by spell level.
-const LIGHTNING_DMG = {
-  1: 150, 2: 180, 3: 210, 4: 240, 5: 270, 6: 320, 7: 400,
-  8: 480, 9: 560, 10: 600, 11: 640, 12: 680, 13: 720,
-};
-
-// Percentage of a building's max HP removed by one Earthquake Spell.
-// Stacked quakes have diminishing returns — see quakeDamage() below.
-const EARTHQUAKE_PCT = {
-  1: 14, 2: 17, 3: 21, 4: 25, 5: 29, 6: 33, 7: 37, 8: 40,
-};
-
-// Hitpoints of the defences people actually zap, by building level.
-const DEFENCE_HP = {
-  "Air Defense":    { 9: 1400, 10: 1500, 11: 1600, 12: 1700, 13: 1800, 14: 1900 },
-  "Inferno Tower":  { 7: 3000, 8: 3200, 9: 3400, 10: 3600, 11: 3800, 12: 4000 },
-  "Eagle Artillery":{ 4: 4600, 5: 4900, 6: 5200, 7: 5500 },
-  "Scattershot":    { 3: 4400, 4: 4700, 5: 5000, 6: 5300 },
-  "Monolith":       { 1: 4500, 2: 4800, 3: 5100, 4: 5400 },
-};
-
-/* Each Earthquake after the first is worth less against the same building:
-   the Nth quake deals its percentage divided by N. Four quakes is the
-   practical ceiling — a fifth adds almost nothing. */
-function quakeDamage(maxHp, quakeLevel, count) {
-  const pct = EARTHQUAKE_PCT[quakeLevel] || 0;
+/* Each Earthquake after the first is worth less against the same building: the
+   Nth quake deals its percentage divided by N. Hero equipment that damages
+   buildings by percentage (Earthquake Boots) stacks into the same sequence. */
+function zqQuakeDamage(maxHp, pct, count) {
   let total = 0;
   for (let n = 1; n <= count; n++) total += (maxHp * pct / 100) / n;
   return Math.min(total, maxHp);
 }
 
-/* Cheapest combo that kills the target, searching quakes first because they
-   scale with the building's size while lightning is flat. Housing space is the
-   real currency in an army, so "cheapest" means fewest total spell slots. */
-function solveZapQuake(maxHp, lightningLevel, quakeLevel, opts = {}) {
-  const maxL = opts.maxLightning ?? 12;
-  const maxQ = opts.maxQuake ?? 4;
-  const lDmg = LIGHTNING_DMG[lightningLevel] || 0;
+/* Cheapest combo that kills the target. Housing space is the real currency in
+   an army, so "cheapest" is fewest spell slots — equipment is free by that
+   measure, which is exactly why it is worth showing. */
+function zqSolve(maxHp, lightningLevel, quakeLevel, equipment = []) {
+  const lDmg = ZQ_LIGHTNING[lightningLevel] || 0;
+  const qPct = ZQ_QUAKE[quakeLevel] || 0;
   if (!lDmg || !maxHp) return null;
 
+  const flatEquip = equipment.filter(e => e.flat);
+  const pctEquip = equipment.filter(e => e.pct);
+
   const options = [];
-  for (let q = 0; q <= maxQ; q++) {
-    const afterQuake = maxHp - quakeDamage(maxHp, quakeLevel, q);
-    const needed = Math.ceil(afterQuake / lDmg);
-    if (needed < 0 || needed > maxL) continue;
-    options.push({
-      lightning: needed,
-      quake: q,
-      // Lightning and Earthquake both take 1 housing space per spell.
-      slots: needed + q,
-      hpBefore: maxHp,
-      hpAfterQuake: Math.max(0, Math.round(afterQuake)),
-      quakeRemoved: Math.round(quakeDamage(maxHp, quakeLevel, q)),
-      lightningDamage: needed * lDmg,
-    });
+  // A hero ability fires once per attack and is usually committed elsewhere, so
+  // it is never combined with another and never treated as the default plan.
+  // Spells-only comes first; abilities are shown as a way to spend fewer slots.
+  const equipSets = [[], ...flatEquip.map(e => [e])];
+
+  for (const set of equipSets) {
+    const flat = set.reduce((a, e) => a + e.flat, 0);
+    for (let q = 0; q <= 4; q++) {
+      // Percentage-based equipment counts as an extra quake in the stack.
+      const pctCount = q + pctEquip.length;
+      const removed = pctCount ? zqQuakeDamage(maxHp, qPct || pctEquip[0]?.pct || 0, pctCount) : 0;
+      const afterPct = Math.max(0, maxHp - removed - flat);
+      const needed = Math.ceil(afterPct / lDmg);
+      if (needed > 12) continue;
+      options.push({
+        lightning: needed, quake: q, equipment: set,
+        slots: needed + q,
+        hpBefore: maxHp,
+        removedByQuake: Math.round(removed),
+        removedByEquip: flat,
+        hpAfter: Math.round(afterPct),
+        lightningDamage: needed * lDmg,
+      });
+    }
   }
   if (!options.length) return null;
-  options.sort((a, b) => a.slots - b.slots || a.quake - b.quake);
-  return { best: options[0], alternatives: options.slice(1, 4) };
+  // Prefer a plan that needs no hero ability: spending one here means not having
+  // it for the rest of the attack, which is a real cost the slot count misses.
+  options.sort((a, b) =>
+    a.equipment.length - b.equipment.length || a.slots - b.slots || a.quake - b.quake);
+  // Drop duplicates that read identically to a user.
+  const seen = new Set();
+  const uniq = options.filter(o => {
+    const k = `${o.lightning}-${o.quake}-${o.equipment.map(e => e.name).join()}`;
+    if (seen.has(k)) return false; seen.add(k); return true;
+  });
+  return { best: uniq[0], alternatives: uniq.slice(1, 5) };
 }
 
-/* Read the player's own spell levels — the whole point is answering against
-   what they have, not against a hypothetical maxed account. */
-function playerSpellLevels() {
+/* Read the player's own levels — the point is answering against what they own. */
+function zqPlayer() {
   const p = typeof loadPlayerData === "function" ? loadPlayerData() : null;
-  const find = (n) => (p?.spells || []).find(s =>
-    s.name === n && (!s.village || s.village === "home"));
+  const home = (arr) => (arr || []).filter(x => !x.village || x.village === "home");
+  const spell = (n) => home(p?.spells).find(s => s.name === n)?.level || null;
+
+  const equipment = [];
+  for (const [name, meta] of Object.entries(ZQ_EQUIPMENT)) {
+    const owned = home(p?.heroEquipment).find(e => e.name === name);
+    if (!owned) continue;
+    const stat = meta.levels[owned.level];
+    if (!stat) continue;
+    equipment.push({ name, level: owned.level, icon: meta.icon, hero: meta.hero, ...stat });
+  }
+
   return {
-    lightning: find("Lightning Spell")?.level || null,
-    quake: find("Earthquake Spell")?.level || null,
+    lightning: spell("Lightning Spell"),
+    quake: spell("Earthquake Spell"),
     townHall: p?.townHallLevel || null,
+    equipment,
     hasVillage: !!p,
   };
 }
@@ -95,105 +97,150 @@ function zqEsc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function zqImg(src, size = 34) {
+  return `<img src="${zqEsc(src)}" alt="" loading="lazy"
+    style="width:${size}px;height:${size}px;object-fit:contain;flex:none" />`;
+}
+
+/* A count badge over an icon — reads faster than "x6 Lightning" as text. */
+function zqCountIcon(src, count, label, tint) {
+  return `<div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:64px">
+    <div style="position:relative">
+      ${zqImg(src, 46)}
+      <span style="position:absolute;bottom:-4px;right:-6px;background:var(--card);border:2px solid ${tint};
+        color:${tint};border-radius:999px;padding:0 6px;font-size:.8rem;font-weight:800;line-height:1.4">×${count}</span>
+    </div>
+    <span class="muted" style="font-size:.66rem;text-align:center;line-height:1.2">${zqEsc(label)}</span>
+  </div>`;
+}
+
+function zqBuildTargetOptions() {
+  const sel = document.getElementById("zqTarget");
+  if (!sel || sel.dataset.built) return;
+  const th = zqPlayer().townHall || 18;
+  const names = Object.keys(ZQ_DEFENCES)
+    .filter(n => ZQ_DEFENCES[n].minTH <= th)
+    .sort();
+  sel.innerHTML = names.map(n => `<option value="${zqEsc(n)}">${zqEsc(n)}</option>`).join("");
+  sel.value = names.includes("Inferno Tower") ? "Inferno Tower" : names[0];
+  sel.dataset.built = "1";
+}
+
 function renderZapQuake() {
   const host = document.getElementById("zapquakeBody");
-  if (!host) return;
-  const lv = playerSpellLevels();
+  if (!host || typeof ZQ_DEFENCES === "undefined") return;
+  const lv = zqPlayer();
 
   if (!lv.hasVillage || !lv.lightning) {
     host.innerHTML = `<p class="muted small">
-      Analyze your village above and this will use your own Lightning and
-      Earthquake levels — no setup needed.</p>`;
+      Analyze your village above and this will use your own spell and equipment
+      levels — nothing to set up.</p>`;
     return;
   }
 
-  const targetSel = document.getElementById("zqTarget");
-  const levelSel = document.getElementById("zqLevel");
-  const target = targetSel?.value || "Air Defense";
-  const levels = DEFENCE_HP[target] || {};
-  const lvlKeys = Object.keys(levels).map(Number).sort((a, b) => a - b);
+  zqBuildTargetOptions();
+  const target = document.getElementById("zqTarget")?.value || "Inferno Tower";
+  const def = ZQ_DEFENCES[target];
+  if (!def) return;
 
-  // Keep the level dropdown in step with the chosen defence.
+  const levelSel = document.getElementById("zqLevel");
+  const lvlKeys = Object.keys(def.hp).map(Number).sort((a, b) => a - b);
   if (levelSel && levelSel.dataset.for !== target) {
-    levelSel.innerHTML = lvlKeys.map(l =>
-      `<option value="${l}">Level ${l}</option>`).join("");
+    levelSel.innerHTML = lvlKeys.map(l => `<option value="${l}">Level ${l}</option>`).join("");
     levelSel.value = String(lvlKeys[lvlKeys.length - 1]);
     levelSel.dataset.for = target;
   }
 
   const bLevel = Number(levelSel?.value) || lvlKeys[lvlKeys.length - 1];
-  const maxHp = levels[bLevel];
-  const res = solveZapQuake(maxHp, lv.lightning, lv.quake || 1);
+  const maxHp = def.hp[bLevel];
+  const res = zqSolve(maxHp, lv.lightning, lv.quake || 0, lv.equipment);
 
-  const yourSpells = `<span class="muted small">Using your
-    <strong>Lightning L${lv.lightning}</strong>${lv.quake ? ` and <strong>Earthquake L${lv.quake}</strong>` : ""}</span>`;
+  const targetCard = `
+    <div class="row" style="gap:12px;align-items:center;margin-bottom:14px">
+      ${zqImg(def.icon, 52)}
+      <div>
+        <div style="font-weight:800;font-size:1.05rem">${zqEsc(target)} <span class="muted">L${bLevel}</span></div>
+        <div class="muted small">${maxHp.toLocaleString()} HP</div>
+      </div>
+    </div>`;
 
   if (!res) {
-    host.innerHTML = `
+    host.innerHTML = targetCard + `
       <div class="card" style="background:var(--bg2);text-align:center;padding:20px">
-        <div style="font-size:1.1rem;font-weight:800;color:var(--red)">Not worth zapping</div>
+        <div style="font-weight:800;color:var(--red)">Not worth zapping</div>
         <p class="muted small" style="margin-top:6px">
-          A level ${bLevel} ${zqEsc(target)} (${maxHp.toLocaleString()} HP) needs more spells
-          than an army can carry at your levels.</p>
-        ${yourSpells}
+          This needs more spells than an army can carry at your levels.</p>
       </div>`;
     return;
   }
 
   const b = res.best;
-  const chip = (n, label, cls) =>
-    `<span class="player-chip" style="font-size:.95rem"><span class="th" style="${cls}">×${n}</span>${label}</span>`;
+  const LIGHT = "assets/spells/lightning-spell.png";
+  const QUAKE = "assets/spells/earthquake-spell.png";
 
-  // The recommendation first and large; the reasoning under it; alternatives last.
-  host.innerHTML = `
+  const icons = [
+    b.lightning ? zqCountIcon(LIGHT, b.lightning, "Lightning", "var(--accent)") : "",
+    b.quake ? zqCountIcon(QUAKE, b.quake, "Earthquake", "var(--gold)") : "",
+    ...b.equipment.map(e => zqCountIcon(e.icon, 1, e.name, "var(--purple)")),
+  ].filter(Boolean).join("");
+
+  host.innerHTML = targetCard + `
     <div class="card" style="background:var(--bg2);padding:18px">
-      <div class="muted small">Bring</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 4px">
-        ${b.lightning ? chip(b.lightning, "Lightning", "color:var(--accent)") : ""}
-        ${b.quake ? chip(b.quake, "Earthquake", "color:var(--gold)") : ""}
+      <div class="muted small" style="margin-bottom:10px">Bring</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">${icons}</div>
+      <div class="muted small" style="margin-top:12px">
+        ${b.slots} spell slot${b.slots === 1 ? "" : "s"}${b.equipment.length ? ` · plus your ${b.equipment.map(e => `${zqEsc(e.hero)}'s ${zqEsc(e.name)}`).join(" + ")}` : ""}
+        · using your <strong>Lightning L${lv.lightning}</strong>${lv.quake ? `, <strong>Earthquake L${lv.quake}</strong>` : ""}
       </div>
-      <div class="muted small">${b.slots} spell slot${b.slots === 1 ? "" : "s"} · ${yourSpells}</div>
     </div>
 
     <details class="card" style="padding:14px 16px;margin-top:10px" open>
       <summary><strong>Why this works</strong></summary>
-      <div style="margin-top:10px" class="small">
+      <div class="small" style="margin-top:10px">
         <p>A level ${bLevel} ${zqEsc(target)} has <strong>${b.hpBefore.toLocaleString()} HP</strong>.</p>
-        ${b.quake ? `<p style="margin-top:6px">
-          ${b.quake} Earthquake${b.quake === 1 ? " strips" : "s strip"}
-          <strong>${b.quakeRemoved.toLocaleString()} HP</strong> — quakes hit for a
-          percentage, so they do the heavy lifting on big buildings. That leaves
-          <strong>${b.hpAfterQuake.toLocaleString()} HP</strong>.</p>` : ""}
-        <p style="margin-top:6px">
+        ${b.removedByQuake ? `<p style="margin-top:6px">
+          ${b.quake ? `${b.quake} Earthquake${b.quake === 1 ? "" : "s"}` : "Percentage damage"}
+          ${b.equipment.some(e => e.pct) ? " (with your Earthquake Boots)" : ""} strips
+          <strong>${b.removedByQuake.toLocaleString()} HP</strong> — percentage damage does the
+          heavy lifting on big buildings.</p>` : ""}
+        ${b.removedByEquip ? `<p style="margin-top:6px">
+          ${b.equipment.filter(e => e.flat).map(e => zqEsc(e.name)).join(" + ")} adds
+          <strong>${b.removedByEquip.toLocaleString()}</strong> damage, saving spell slots — but
+          that ability is then spent here rather than on the rest of the attack.</p>` : ""}
+        ${b.lightning ? `<p style="margin-top:6px">
           ${b.lightning} Lightning at L${lv.lightning} deals
-          <strong>${b.lightningDamage.toLocaleString()}</strong> — enough to finish it.</p>
-        ${b.quake ? `<p class="muted" style="margin-top:8px">
-          Drop the Earthquakes first. Each extra quake on the same building is worth
-          less than the last, which is why ${b.quake} is the sweet spot rather than more.</p>` : ""}
+          <strong>${b.lightningDamage.toLocaleString()}</strong>, finishing the remaining
+          ${b.hpAfter.toLocaleString()} HP.</p>` : ""}
+        ${b.quake > 1 ? `<p class="muted" style="margin-top:8px">
+          Drop the Earthquakes first. Each one on the same building is worth less than the
+          last, which is why ${b.quake} is the sweet spot rather than more.</p>` : ""}
       </div>
     </details>
 
     ${res.alternatives.length ? `
     <details class="card" style="padding:14px 16px;margin-top:10px">
-      <summary><strong>Other combos that also work</strong> <span class="muted small">(${res.alternatives.length})</span></summary>
+      <summary><strong>Other combos that work</strong> <span class="muted small">(${res.alternatives.length})</span></summary>
       <table style="margin-top:10px"><thead><tr>
-        <th>Lightning</th><th>Earthquake</th><th>Slots</th>
+        <th>Lightning</th><th>Earthquake</th><th>Equipment</th><th>Slots</th>
       </tr></thead><tbody>
         ${res.alternatives.map(a => `<tr>
-          <td>×${a.lightning}</td><td>${a.quake ? "×" + a.quake : "—"}</td><td>${a.slots}</td>
+          <td>${a.lightning ? `${zqImg(LIGHT, 22)} ×${a.lightning}` : "—"}</td>
+          <td>${a.quake ? `${zqImg(QUAKE, 22)} ×${a.quake}` : "—"}</td>
+          <td>${a.equipment.length ? a.equipment.map(e => zqImg(e.icon, 22)).join(" ") : "—"}</td>
+          <td><strong>${a.slots}</strong></td>
         </tr>`).join("")}
       </tbody></table>
     </details>` : ""}
 
-    ${!ZQ_VERIFIED ? `<p class="muted small" style="margin-top:10px">
-      ⚠️ Spell and building values are still being verified against the current
-      game version — double-check before relying on this in a war attack.</p>` : ""}`;
+    ${lv.equipment.length ? "" : `<p class="muted small" style="margin-top:10px">
+      Tip: Fireball, Giant Arrow or Earthquake Boots would cut the spell cost here — none
+      were found in your village data.</p>`}`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const t = document.getElementById("zqTarget");
-  const l = document.getElementById("zqLevel");
-  if (t) t.addEventListener("change", renderZapQuake);
-  if (l) l.addEventListener("change", renderZapQuake);
+  ["zqTarget", "zqLevel"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", renderZapQuake);
+  });
   renderZapQuake();
 });
