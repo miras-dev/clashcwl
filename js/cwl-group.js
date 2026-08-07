@@ -485,6 +485,9 @@ function renderRoster() {
 
   const sorted = state.roster.slice().sort((a, b) => playerScore(b) - playerScore(a));
   const active = sorted.filter(p => p.active !== false);
+  // The section is collapsed, so the summary has to carry the headline.
+  const count = $g("rosterCount");
+  if (count) count.textContent = ` — ${active.length} active of ${sorted.length}`;
   $g("rosterList").innerHTML = `
     <p class="muted small">${active.length} active of ${sorted.length} · war size ${state.warSize}</p>
     <table style="margin-top:10px"><thead><tr>
@@ -599,7 +602,7 @@ function renderWarMap(opp, assignedKeys) {
 
   const outmatched = theirs.filter((t, i) => ours[i] && (ours[i].thLevel || 0) < t.th).length;
 
-  return `<details class="card wm-card" style="margin-top:10px">
+  return `<details class="card wm-card" style="margin-top:10px" open>
     <summary><strong>War map</strong>
       <span class="muted small"> — their round ${last.round} line-up${
         outmatched ? ` · <span style="color:var(--red)">${outmatched} of yours outmatched</span>` : " · no mismatches"}</span></summary>

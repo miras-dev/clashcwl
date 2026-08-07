@@ -249,18 +249,25 @@
     </div>
 
     <!-- ── Step 4: roster ───────────────────────────────────── -->
+    <!-- Collapsed by default: a 50-player roster pushed the war-day plan far
+         below the fold on a phone, and it is reference data rather than
+         something you read on every visit. -->
     <div id="rosterSection" style="display:none">
       <h2>4 · Your roster</h2>
-      <div class="card">
-        <div class="row" style="justify-content:space-between">
-          <p class="muted small" style="margin:0">
-            Loaded from your clan. Players are tiered by Town Hall + hero levels; toggle anyone
-            who isn't participating this season.
-          </p>
-          <button id="refreshRosterBtn" class="secondary">Reload roster</button>
+      <details class="card">
+        <summary><strong>Your roster</strong>
+          <span class="muted small" id="rosterCount"></span></summary>
+        <div style="margin-top:14px">
+          <div class="row" style="justify-content:space-between">
+            <p class="muted small" style="margin:0">
+              Loaded from your clan. Players are tiered by Town Hall + hero levels; toggle anyone
+              who isn't participating this season.
+            </p>
+            <button id="refreshRosterBtn" class="secondary">Reload roster</button>
+          </div>
+          <div id="rosterList" style="margin-top:14px"></div>
         </div>
-        <div id="rosterList" style="margin-top:14px"></div>
-      </div>
+      </details>
     </div>
 
     <!-- ── Step 5: assignments ──────────────────────────────── -->
