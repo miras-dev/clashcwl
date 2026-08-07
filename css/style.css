@@ -393,9 +393,14 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
 .wm-gap { font-size: .72rem; font-weight: 800; }
 
 @media (max-width: 700px) {
-  .wm-head, .wm-row { grid-template-columns: 1fr 46px 1fr; gap: 6px; }
-  .wm-side { padding: 6px 8px; }
-  .wm-th { width: 32px; height: 32px; }
-  .wm-name { font-size: .76rem; }
-  .wm-board { padding: 10px 8px; }
+  .wm-head, .wm-row { grid-template-columns: 1fr 34px 1fr; gap: 4px; }
+  .wm-side { padding: 6px 6px; }
+  /* Shrink the art before the name: a truncated name is useless, and the
+     Town Hall level is on the badge either way. */
+  .wm-th { width: 26px; height: 26px; }
+  .wm-slot { gap: 6px; }
+  .wm-name { font-size: .72rem; white-space: normal; overflow: visible; line-height: 1.2; }
+  .wm-pos { width: 22px; height: 22px; font-size: .68rem; }
+  .wm-board { padding: 10px 6px; }
+  .wm-thlvl { font-size: .6rem; padding: 0 4px; }
 }

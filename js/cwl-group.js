@@ -555,7 +555,11 @@ function renderWarMap(opp, assignedKeys) {
 
   // The game orders a war map by base strength, and the position it assigned is
   // exactly that ranking — so map position is the sort, not a tiebreak.
-  const theirs = last.lineup.slice().sort((a, b) => a.pos - b.pos);
+  // A past round may have been a bigger war than the one being planned, so the
+  // map is capped at the size actually being fielded — never more rows than
+  // there are attackers.
+  const size = Math.min(Number(state.warSize) || 15, last.lineup.length);
+  const theirs = last.lineup.slice().sort((a, b) => a.pos - b.pos).slice(0, size);
   const ours = assignedKeys
     .map(k => state.roster.find(x => (x.tag || x.name) === k))
     .filter(Boolean)
