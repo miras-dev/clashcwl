@@ -769,12 +769,40 @@ function renderRounds() {
         p.attacks ? `<div class="muted small">${p.attacks} attack${p.attacks === 1 ? "" : "s"}</div>` : ""}</td>
     </tr>`).join("");
 
+    // Per-round line-ups in map order — the war roster as it was actually set.
+    // Newest first, and the newest is open because a war in preparation shows
+    // its line-up before anyone attacks, which is when scouting is worth most.
+    const roundBlocks = c.rounds.slice().reverse().map((r, idx) => {
+      const prep = r.state === "preparation";
+      const lineRows = r.lineup.map(p => `<tr>
+        <td class="muted">${p.pos}</td>
+        <td><strong>${escG(p.name)}</strong><div class="muted small">${escG(p.tag)}</div></td>
+        <td><span class="player-chip"><span class="th">TH${p.th}</span></span></td>
+        <td>${p.attacks
+          ? `<strong style="color:var(--gold)">⭐ ${p.stars}</strong><div class="muted small">${p.destruction}%</div>`
+          : `<span class="muted small">${prep ? "not started" : "no attack"}</span>`}</td>
+      </tr>`).join("");
+
+      return `<details class="card" style="padding:12px 14px;margin-bottom:8px;background:var(--bg2)"${idx === 0 ? " open" : ""}>
+        <summary><strong>Round ${r.round}</strong>
+          <span class="muted small"> — ${r.teamSize} v ${r.teamSize}${
+            prep ? " · preparation day" : ` · ⭐ ${r.stars} · ${Math.round(r.destruction)}%`}</span></summary>
+        <table style="margin-top:10px"><thead><tr>
+          <th>#</th><th>Player</th><th>TH</th><th>Result</th>
+        </tr></thead><tbody>${lineRows}</tbody></table>
+      </details>`;
+    }).join("");
+
     return `<details class="card" style="padding:14px 16px;margin-bottom:10px"${isUs ? " open" : ""}>
       <summary><strong>${escG(c.name)}</strong>${isUs ? ` <span class="pill" style="color:var(--primary-text);border-color:var(--primary)">YOU</span>` : ""}
         <span class="muted small"> — ${c.roundsPlayed} round${c.roundsPlayed === 1 ? "" : "s"} played</span></summary>
       <div style="margin-top:12px">
         <div class="muted small" style="margin-bottom:6px">Currently fielding</div>
         <div style="margin-bottom:12px">${mix || '<span class="muted small">—</span>'}</div>
+
+        <div class="muted small" style="margin-bottom:6px">Line-up each round</div>
+        <div style="margin-bottom:14px">${roundBlocks}</div>
+        <div class="muted small" style="margin-bottom:6px">Across all rounds</div>
         <p class="muted small" style="margin-bottom:10px">
           ${core.length} player${core.length === 1 ? "" : "s"} in every round${rot.length ? `, ${rot.length} rotated in and out` : " — no rotation so far"}.
           ${c.totalAttacks ? `<strong style="color:var(--gold)">⭐ ${c.totalStars}</strong> from ${c.totalAttacks} attacks
