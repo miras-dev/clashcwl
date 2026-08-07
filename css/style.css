@@ -324,3 +324,78 @@ nav a.github-link {
   flex: none;
   margin-left: 10px;
 }
+
+/* ---------- war map ----------
+   Mirrors the in-game CWL map: your line-up on the left, the opponent's on the
+   right, paired by map position. The board keeps a cool, snow-field tint so it
+   reads as a battlefield rather than another table. */
+.wm-card { background: var(--bg2); }
+.wm-board {
+  margin-top: 12px;
+  border-radius: 12px;
+  padding: 12px 10px;
+  background:
+    linear-gradient(180deg, rgba(146,180,214,.16) 0%, rgba(96,132,170,.10) 55%, rgba(30,40,60,.10) 100%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.028) 0 18px, rgba(255,255,255,0) 18px 36px),
+    var(--card);
+  border: 1px solid var(--border);
+}
+.wm-head {
+  display: grid; grid-template-columns: 1fr 64px 1fr; gap: 8px;
+  align-items: center; margin-bottom: 10px;
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+}
+.wm-head > :last-child { text-align: right; }
+.wm-vs { text-align: center; font-weight: 800; color: var(--text); letter-spacing: 1px; }
+
+.wm-row {
+  display: grid; grid-template-columns: 1fr 64px 1fr; gap: 8px;
+  align-items: stretch; margin-bottom: 8px;
+}
+.wm-side {
+  background: rgba(12,17,28,.55);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+/* Your side is a button: tapping it swaps the attacker for that base. */
+button.wm-you {
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.10); }
+.wm-them { border-color: rgba(255,255,255,.10); }
+
+.wm-slot { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.wm-them .wm-slot { flex-direction: row-reverse; text-align: right; }
+.wm-empty { justify-content: center; opacity: .6; }
+
+.wm-th { position: relative; flex: none; width: 40px; height: 40px; }
+.wm-th img { width: 100%; height: 100%; object-fit: contain; }
+.wm-thlvl {
+  position: absolute; bottom: -3px; right: -4px;
+  background: var(--card); border: 1px solid var(--gold); color: var(--gold);
+  border-radius: 999px; padding: 0 5px; font-size: .66rem; font-weight: 800; line-height: 1.5;
+}
+.wm-name {
+  font-weight: 700; font-size: .84rem; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.wm-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.wm-pos {
+  width: 26px; height: 26px; border-radius: 999px;
+  background: var(--card2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .74rem; font-weight: 800; color: var(--muted);
+}
+.wm-gap { font-size: .72rem; font-weight: 800; }
+
+@media (max-width: 700px) {
+  .wm-head, .wm-row { grid-template-columns: 1fr 46px 1fr; gap: 6px; }
+  .wm-side { padding: 6px 8px; }
+  .wm-th { width: 32px; height: 32px; }
+  .wm-name { font-size: .76rem; }
+  .wm-board { padding: 10px 8px; }
+}

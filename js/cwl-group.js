@@ -541,58 +541,106 @@ function autoAssign() {
   renderAssignments();
 }
 
-/* The war map, as the game lays it out: their roster down one side, yours down
-   the other, paired by map position. Their side comes from the line-up they
-   actually fielded most recently — during preparation day that is visible
-   before a single attack, which is when knowing it is worth most.
+/* The in-game war map, replicated: your line-up down the left, theirs down the
+   right, paired by map position. Their side is the roster they actually
+   fielded most recently — on preparation day that is visible before a single
+   attack, which is when knowing it is worth most.
 
-   Pairing by position is what makes it useful: it turns "we are stronger" into
-   "your number 4 is outmatched", which is the call you actually have to make. */
+   Clicking one of your slots opens a picker, so the line-up can be reordered
+   against what you can see of theirs. */
 function renderWarMap(opp, assignedKeys) {
   const rounds = state.rounds?.clans?.find(c => normTag(c.tag) === normTag(opp.tag));
   const last = rounds?.rounds?.[rounds.rounds.length - 1];
   if (!last?.lineup?.length) return "";
 
+  // The game orders a war map by base strength, and the position it assigned is
+  // exactly that ranking — so map position is the sort, not a tiebreak.
   const theirs = last.lineup.slice().sort((a, b) => a.pos - b.pos);
-  // Ours in the same order the auto-assign picked them: strongest first.
   const ours = assignedKeys
     .map(k => state.roster.find(x => (x.tag || x.name) === k))
     .filter(Boolean)
     .sort((a, b) => playerScore(b) - playerScore(a));
 
+  const TH = "assets/town-hall/town-hall.png";
+  const slot = (p, side) => {
+    if (!p) return `<div class="wm-slot wm-empty"><span class="muted small">empty</span></div>`;
+    const th = side === "them" ? p.th : (p.thLevel || 0);
+    const name = p.name;
+    return `<div class="wm-slot">
+      <div class="wm-th">
+        <img src="${TH}" alt="" loading="lazy" />
+        <span class="wm-thlvl">${th || "?"}</span>
+      </div>
+      <div class="wm-name">${escG(name)}</div>
+    </div>`;
+  };
+
   const rows = theirs.map((t, i) => {
     const o = ours[i];
     const gap = o ? (o.thLevel || 0) - t.th : null;
-    // A one-TH deficit is a fair fight; two or more is where attacks fail.
     const tone = gap == null ? "var(--muted)"
       : gap >= 1 ? "var(--green)" : gap === 0 ? "var(--gold)" : "var(--red)";
-    const verdict = gap == null ? "—"
-      : gap > 0 ? `+${gap} TH` : gap === 0 ? "even" : `${gap} TH`;
+    const verdict = gap == null ? "—" : gap > 0 ? `+${gap}` : gap === 0 ? "=" : `${gap}`;
 
-    return `<tr>
-      <td class="muted">${t.pos}</td>
-      <td><strong>${escG(t.name)}</strong><div class="muted small">TH${t.th}</div></td>
-      <td style="text-align:center;color:${tone};font-weight:800">${verdict}</td>
-      <td>${o
-        ? `<strong>${escG(o.name)}</strong><div class="muted small">TH${o.thLevel || "?"}</div>`
-        : `<span class="muted small">unassigned</span>`}</td>
-    </tr>`;
+    return `<div class="wm-row">
+      <button class="wm-side wm-you" data-pick="${escG(opp.tag)}" data-idx="${i}"
+        title="Change who attacks base ${t.pos}">${slot(o, "you")}</button>
+      <div class="wm-mid">
+        <div class="wm-pos">${t.pos}</div>
+        <div class="wm-gap" style="color:${tone}">${verdict}</div>
+      </div>
+      <div class="wm-side wm-them">${slot(t, "them")}</div>
+    </div>`;
   }).join("");
 
   const outmatched = theirs.filter((t, i) => ours[i] && (ours[i].thLevel || 0) < t.th).length;
 
-  return `<details class="card" style="padding:12px 14px;margin-top:10px;background:var(--bg2)">
+  return `<details class="card wm-card" style="margin-top:10px">
     <summary><strong>War map</strong>
       <span class="muted small"> — their round ${last.round} line-up${
         outmatched ? ` · <span style="color:var(--red)">${outmatched} of yours outmatched</span>` : " · no mismatches"}</span></summary>
-    <table style="margin-top:10px"><thead><tr>
-      <th>#</th><th>Them</th><th>Gap</th><th>You</th>
-    </tr></thead><tbody>${rows}</tbody></table>
-    <p class="muted small" style="margin-top:8px">
-      Paired by map position. Gap is your Town Hall minus theirs — red means your
-      attacker is below the base they are matched against.
+    <div class="wm-board">
+      <div class="wm-head">
+        <div>Your line-up</div><div class="wm-vs">VS</div><div>${escG(opp.name)}</div>
+      </div>
+      ${rows}
+    </div>
+    <p class="muted small" style="margin-top:10px">
+      Tap one of your slots to swap the attacker. Numbers are map positions;
+      the middle column is your Town Hall minus theirs.
     </p>
   </details>`;
+}
+
+/* Swap one of your attackers for another active player, keeping the rest of the
+   day's line-up intact. */
+function warMapPick(oppTag, idx) {
+  const assigned = state.assignments[oppTag] || [];
+  const ours = assigned
+    .map(k => state.roster.find(x => (x.tag || x.name) === k))
+    .filter(Boolean)
+    .sort((a, b) => playerScore(b) - playerScore(a));
+  const current = ours[idx];
+  const pool = state.roster.filter(p => p.active !== false);
+  if (!pool.length) return;
+
+  const names = pool.map((p, i) =>
+    `${i + 1}. ${p.name} (TH${p.thLevel || "?"})${(p.tag || p.name) === (current?.tag || current?.name) ? " ← current" : ""}`);
+  const answer = prompt(`Who attacks base ${idx + 1}?\n\n${names.join("\n")}\n\nEnter a number:`);
+  const n = Number(answer);
+  if (!n || n < 1 || n > pool.length) return;
+
+  const picked = pool[n - 1];
+  const key = picked.tag || picked.name;
+  const next = ours.map(p => p.tag || p.name);
+  // If the picked player is already in this line-up, swap the two slots rather
+  // than fielding the same person twice.
+  const existing = next.indexOf(key);
+  if (existing >= 0) next[existing] = next[idx];
+  next[idx] = key;
+
+  state.assignments[oppTag] = next;
+  saveState(); renderAssignments();
 }
 
 function renderAssignments() {
@@ -637,6 +685,12 @@ function renderAssignments() {
         ${renderWarMap(opp, assigned)}
       </div>`;
   }).join("");
+
+  $g("dayList").querySelectorAll("[data-pick]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      warMapPick(btn.dataset.pick, Number(btn.dataset.idx));
+    });
+  });
 
   $g("dayList").querySelectorAll("[data-day]").forEach(sel => {
     sel.addEventListener("change", () => {
