@@ -541,6 +541,60 @@ function autoAssign() {
   renderAssignments();
 }
 
+/* The war map, as the game lays it out: their roster down one side, yours down
+   the other, paired by map position. Their side comes from the line-up they
+   actually fielded most recently — during preparation day that is visible
+   before a single attack, which is when knowing it is worth most.
+
+   Pairing by position is what makes it useful: it turns "we are stronger" into
+   "your number 4 is outmatched", which is the call you actually have to make. */
+function renderWarMap(opp, assignedKeys) {
+  const rounds = state.rounds?.clans?.find(c => normTag(c.tag) === normTag(opp.tag));
+  const last = rounds?.rounds?.[rounds.rounds.length - 1];
+  if (!last?.lineup?.length) return "";
+
+  const theirs = last.lineup.slice().sort((a, b) => a.pos - b.pos);
+  // Ours in the same order the auto-assign picked them: strongest first.
+  const ours = assignedKeys
+    .map(k => state.roster.find(x => (x.tag || x.name) === k))
+    .filter(Boolean)
+    .sort((a, b) => playerScore(b) - playerScore(a));
+
+  const rows = theirs.map((t, i) => {
+    const o = ours[i];
+    const gap = o ? (o.thLevel || 0) - t.th : null;
+    // A one-TH deficit is a fair fight; two or more is where attacks fail.
+    const tone = gap == null ? "var(--muted)"
+      : gap >= 1 ? "var(--green)" : gap === 0 ? "var(--gold)" : "var(--red)";
+    const verdict = gap == null ? "—"
+      : gap > 0 ? `+${gap} TH` : gap === 0 ? "even" : `${gap} TH`;
+
+    return `<tr>
+      <td class="muted">${t.pos}</td>
+      <td><strong>${escG(t.name)}</strong><div class="muted small">TH${t.th}</div></td>
+      <td style="text-align:center;color:${tone};font-weight:800">${verdict}</td>
+      <td>${o
+        ? `<strong>${escG(o.name)}</strong><div class="muted small">TH${o.thLevel || "?"}</div>`
+        : `<span class="muted small">unassigned</span>`}</td>
+    </tr>`;
+  }).join("");
+
+  const outmatched = theirs.filter((t, i) => ours[i] && (ours[i].thLevel || 0) < t.th).length;
+
+  return `<details class="card" style="padding:12px 14px;margin-top:10px;background:var(--bg2)">
+    <summary><strong>War map</strong>
+      <span class="muted small"> — their round ${last.round} line-up${
+        outmatched ? ` · <span style="color:var(--red)">${outmatched} of yours outmatched</span>` : " · no mismatches"}</span></summary>
+    <table style="margin-top:10px"><thead><tr>
+      <th>#</th><th>Them</th><th>Gap</th><th>You</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+    <p class="muted small" style="margin-top:8px">
+      Paired by map position. Gap is your Town Hall minus theirs — red means your
+      attacker is below the base they are matched against.
+    </p>
+  </details>`;
+}
+
 function renderAssignments() {
   const opponents = state.clans
     .filter(c => normTag(c.tag) !== normTag(state.myTag))
@@ -580,6 +634,7 @@ function renderAssignments() {
           </select>
         </div>
         <div style="margin-top:10px">${chips || `<span class="muted small">No lineup yet — hit “Auto-assign all 7 days”.</span>`}</div>
+        ${renderWarMap(opp, assigned)}
       </div>`;
   }).join("");
 
