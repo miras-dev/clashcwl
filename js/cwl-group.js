@@ -651,9 +651,22 @@ function warMapPick(oppTag, idx) {
 }
 
 function renderAssignments() {
+  // With round history loaded we know the real schedule, so show the days in
+  // the order they will actually be played. Without it, fall back to hardest
+  // first — which is an ordering of difficulty, not a schedule.
+  const mineRounds = state.rounds?.clans?.find(c => normTag(c.tag) === normTag(state.myTag))?.rounds;
+  const roundOf = (tag) =>
+    mineRounds?.find(r => normTag(r.opponentTag || "") === normTag(tag))?.round ?? null;
+
   const opponents = state.clans
     .filter(c => normTag(c.tag) !== normTag(state.myTag))
-    .sort((a, b) => clanStrength(b, Number(state.warSize) || 15) - clanStrength(a, Number(state.warSize) || 15));
+    .sort((a, b) => {
+      const ra = roundOf(a.tag), rb = roundOf(b.tag);
+      if (ra != null && rb != null) return ra - rb;
+      if (ra != null) return -1;
+      if (rb != null) return 1;
+      return clanStrength(b, Number(state.warSize) || 15) - clanStrength(a, Number(state.warSize) || 15);
+    });
   const show = opponents.length > 0 && state.roster.length > 0;
   $g("assignSection").style.display = show ? "block" : "none";
   if (!show) return;
@@ -677,7 +690,15 @@ function renderAssignments() {
       <div class="day-card">
         <div class="row" style="justify-content:space-between">
           <div>
-            <strong>War Day ${i + 1}</strong> vs <strong>${escG(opp.name)}</strong>
+            ${(() => {
+              // If round history is loaded we know the real schedule, so name
+              // the actual round rather than implying one from a strength sort.
+              const mine = state.rounds?.clans?.find(c => normTag(c.tag) === normTag(state.myTag));
+              const r = mine?.rounds?.find(x => normTag(x.opponentTag || "") === normTag(opp.tag));
+              return r
+                ? `<strong>Round ${r.round}</strong> vs <strong>${escG(opp.name)}</strong>`
+                : `<strong>#${i + 1} toughest</strong> vs <strong>${escG(opp.name)}</strong>`;
+            })()}
             <span class="pill" style="color:${tag[1]}; border-color:${tag[1]}; margin-left:8px">${tag[0]}</span>
             <div class="muted small">Their strength ${s} (${diff > 0 ? "+" : ""}${diff} vs you)${opp.avgTH ? ` · avg TH ${opp.avgTH}` : ""}</div>
           </div>

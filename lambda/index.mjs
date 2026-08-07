@@ -253,9 +253,15 @@ export const handler = async (event) => {
         for (const side of war.sides) {
           if (!side.tag) continue;
           const e = byClan[side.tag] || (byClan[side.tag] = { tag: side.tag, name: side.name, rounds: [] });
+          const foe = war.sides.find(s => s.tag && s.tag !== side.tag);
           e.rounds.push({
             round, state: war.state, teamSize: war.teamSize,
             stars: side.stars, destruction: side.destruction,
+            // Who this clan actually faced in this round. The war schedule is
+            // fixed by the game and is not the same as any strength ordering.
+            opponentTag: foe?.tag || null,
+            opponentName: foe?.name || null,
+            opponentStars: foe?.stars ?? null,
             lineup: side.members.sort((a, b) => a.pos - b.pos),
           });
         }
