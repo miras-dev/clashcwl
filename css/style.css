@@ -392,6 +392,30 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
 }
 .wm-gap { font-size: .72rem; font-weight: 800; }
 
+/* The toggle that shows or hides our own column. Desktop shows both sides, so
+   it offers to hide; phones show theirs only, so it offers to show. */
+.wm-toggle {
+  font: inherit; font-size: .76rem; font-weight: 700;
+  color: var(--muted); cursor: pointer;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 12px;
+  transition: border-color .15s, color .15s;
+}
+.wm-toggle:hover { border-color: var(--primary); color: var(--text); }
+/* Only one of the two labels is ever live; which one depends on current state. */
+.wm-toggle-show { display: none; }
+
+/* Desktop shows both sides, so here the class means "hide ours" — the inverse
+   of what it means on a phone, where the column starts hidden. Each breakpoint
+   owns its own default and the class always flips it. */
+.wm-card.wm-show-you .wm-col-you { display: none; }
+.wm-card.wm-show-you .wm-head,
+.wm-card.wm-show-you .wm-row { grid-template-columns: 64px 1fr; }
+.wm-card.wm-show-you .wm-vs,
+.wm-card.wm-show-you .wm-gap { display: none; }
+.wm-card.wm-show-you .wm-toggle-show { display: inline; }
+.wm-card.wm-show-you .wm-toggle-hide { display: none; }
+
 @media (max-width: 700px) {
   .wm-head, .wm-row { grid-template-columns: 1fr 34px 1fr; gap: 4px; }
   .wm-side { padding: 6px 6px; }
@@ -403,4 +427,100 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
   .wm-pos { width: 22px; height: 22px; font-size: .68rem; }
   .wm-board { padding: 10px 6px; }
   .wm-thlvl { font-size: .6rem; padding: 0 4px; }
+
+  /* Phones default to the opponent's line-up alone: that is what you plan
+     against, and dropping our column buys back the width their names need.
+     With one side left there is nothing to compare across, so the gap column
+     goes too and the map position moves beside the base it belongs to.
+
+     The class means the opposite of what it does on desktop — here it adds our
+     column back — so every rule above is inverted for this breakpoint. */
+  .wm-card:not(.wm-show-you) .wm-col-you { display: none; }
+  .wm-card:not(.wm-show-you) .wm-head,
+  .wm-card:not(.wm-show-you) .wm-row { grid-template-columns: 34px 1fr; }
+  .wm-card:not(.wm-show-you) .wm-vs,
+  .wm-card:not(.wm-show-you) .wm-gap { display: none; }
+  .wm-card:not(.wm-show-you) .wm-name { font-size: .82rem; }
+
+  /* Toggled on, the phone shows the same two-column board as desktop. */
+  .wm-card.wm-show-you .wm-col-you { display: block; }
+  .wm-card.wm-show-you .wm-head,
+  .wm-card.wm-show-you .wm-row { grid-template-columns: 1fr 34px 1fr; }
+  .wm-card.wm-show-you .wm-vs,
+  .wm-card.wm-show-you .wm-gap { display: block; }
+
+  .wm-toggle-show { display: inline; }
+  .wm-toggle-hide { display: none; }
+  .wm-card.wm-show-you .wm-toggle-show { display: none; }
+  .wm-card.wm-show-you .wm-toggle-hide { display: inline; }
+}
+
+/* ---------------- Ore & Equipment calculator ----------------
+   Ore quantities are the whole point of this page, so they get chips sized to
+   be read at a glance rather than table text. Colours follow the in-game ores:
+   Shiny is plain, Glowy is blue, Starry is gold. */
+.ore-controls {
+  display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;
+  margin-top: 14px; align-items: end;
+}
+.ore-controls label { display: block; margin-bottom: 4px; }
+/* The shared input rule covers text/password/url but not number, so these
+   would otherwise fall back to the browser's ~38px default — too narrow to
+   type a two-digit level into on a phone. */
+.ore-controls input[type=number] {
+  width: 100%;
+  background: var(--bg2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 9px;
+  padding: 11px 13px; font-size: .92rem; font-family: inherit;
+}
+.ore-controls input[type=number]:focus { outline: none; border-color: var(--primary); }
+
+/* The potion panel reuses .ore-controls but with three equal fields rather
+   than a wide select plus two narrow numbers. */
+.potion-controls { grid-template-columns: 1fr 1fr 1fr; }
+#shortJobs {
+  width: 100%; max-width: 220px;
+  background: var(--bg2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 9px;
+  padding: 11px 13px; font-size: .92rem; font-family: inherit;
+}
+#shortJobs:focus { outline: none; border-color: var(--primary); }
+.ore-check {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 0; font-size: .88rem; color: var(--text); font-weight: 600;
+  cursor: pointer;
+}
+.ore-check input { width: 17px; height: 17px; accent-color: var(--primary); cursor: pointer; }
+
+.ore-total {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.ore-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.ore-chip {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 12px;
+  font-weight: 800; font-size: .95rem;
+}
+.ore-glowy  { border-color: var(--accent); color: var(--accent); }
+.ore-starry { border-color: var(--gold); color: var(--gold); }
+
+/* Milestone rows are where Glowy and Starry are actually spent — the levels
+   worth planning around, so they are tinted out of the run of plain rows. */
+.ore-milestone { background: rgba(246,185,59,.06); }
+.ore-done { opacity: .55; }
+
+@media (max-width: 700px) {
+  /* Stack the controls: three fields across a phone leaves the number inputs
+     too narrow to type into. */
+  .ore-controls { grid-template-columns: 1fr 1fr; }
+  .ore-controls > :first-child { grid-column: 1 / -1; }
+  /* Here all three are number fields, so the medal budget takes the full row
+     rather than the equipment select. */
+  .potion-controls > :first-child { grid-column: auto; }
+  .potion-controls > :last-child { grid-column: 1 / -1; }
+  .ore-chip { font-size: .88rem; padding: 5px 10px; }
 }

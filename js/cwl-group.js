@@ -544,6 +544,61 @@ function autoAssign() {
   renderAssignments();
 }
 
+/* How the game itself ranked our players, learned from the rounds we already
+   played.
+
+   The map position CoC assigns is a whole-base strength ranking — defenses,
+   walls, pets, troop levels, the lot. playerScore only sees Town Hall, hero sum
+   and war stars, so it mis-sorts our side: two TH17s with identical heroes can
+   sit ten positions apart in game because one has maxed defenses. Their side
+   never had this problem, because it reads a real mapPosition straight from the
+   war.
+
+   So do the same for ours. Average each player's mapPosition over the rounds
+   they were actually fielded in (recent rounds weighted heavier, since a base
+   that upgraded mid-season should drift), and sort by that. Players with no
+   history — a new member, or someone who has not warred yet — have no in-game
+   ranking to read, so they keep playerScore and sort below everyone who does.
+
+   Returns a comparator, or the playerScore one when we have no history at all. */
+function ourMapOrder() {
+  const mine = state.rounds?.clans?.find(c => normTag(c.tag) === normTag(state.myTag));
+  const rounds = mine?.rounds;
+  if (!rounds?.length) return (a, b) => playerScore(b) - playerScore(a);
+
+  // Newest round counts most: a base upgraded mid-season should move.
+  const played = rounds.filter(r => r.lineup?.length).sort((a, b) => a.round - b.round);
+  if (!played.length) return (a, b) => playerScore(b) - playerScore(a);
+
+  const acc = new Map(); // key -> { sum, weight }
+  played.forEach((r, i) => {
+    const w = i + 1; // linear recency weight
+    r.lineup.forEach(p => {
+      if (p.pos == null) return;
+      const key = p.tag || p.name;
+      const cur = acc.get(key) || { sum: 0, weight: 0 };
+      cur.sum += p.pos * w;
+      cur.weight += w;
+      acc.set(key, cur);
+    });
+  });
+
+  const rank = (p) => {
+    const e = acc.get(p.tag || p.name) ?? acc.get(p.name);
+    return e && e.weight ? e.sum / e.weight : null;
+  };
+
+  return (a, b) => {
+    const ra = rank(a), rb = rank(b);
+    // Lower map position is stronger. Anyone the game has never ranked sorts
+    // after everyone it has, rather than being guessed into the middle.
+    if (ra != null && rb != null) return ra - rb;
+    if (ra != null) return -1;
+    if (rb != null) return 1;
+    return playerScore(b) - playerScore(a);
+  };
+}
+
 /* The in-game war map, replicated: your line-up down the left, theirs down the
    right, paired by map position. Their side is the roster they actually
    fielded most recently — on preparation day that is visible before a single
@@ -551,7 +606,7 @@ function autoAssign() {
 
    Clicking one of your slots opens a picker, so the line-up can be reordered
    against what you can see of theirs. */
-function renderWarMap(opp, assignedKeys) {
+function renderWarMap(opp, assignedKeys, isToday = true) {
   const rounds = state.rounds?.clans?.find(c => normTag(c.tag) === normTag(opp.tag));
   const last = rounds?.rounds?.[rounds.rounds.length - 1];
   if (!last?.lineup?.length) return "";
@@ -566,7 +621,7 @@ function renderWarMap(opp, assignedKeys) {
   const ours = assignedKeys
     .map(k => state.roster.find(x => (x.tag || x.name) === k))
     .filter(Boolean)
-    .sort((a, b) => playerScore(b) - playerScore(a));
+    .sort(ourMapOrder());
 
   const TH = "assets/town-hall/town-hall.png";
   const slot = (p, side) => {
@@ -590,7 +645,7 @@ function renderWarMap(opp, assignedKeys) {
     const verdict = gap == null ? "—" : gap > 0 ? `+${gap}` : gap === 0 ? "=" : `${gap}`;
 
     return `<div class="wm-row">
-      <button class="wm-side wm-you" data-pick="${escG(opp.tag)}" data-idx="${i}"
+      <button class="wm-side wm-you wm-col-you" data-pick="${escG(opp.tag)}" data-idx="${i}"
         title="Change who attacks base ${t.pos}">${slot(o, "you")}</button>
       <div class="wm-mid">
         <div class="wm-pos">${t.pos}</div>
@@ -602,13 +657,27 @@ function renderWarMap(opp, assignedKeys) {
 
   const outmatched = theirs.filter((t, i) => ours[i] && (ours[i].thLevel || 0) < t.th).length;
 
-  return `<details class="card wm-card" style="margin-top:10px" open>
-    <summary><strong>War map</strong>
+  // On a phone the opponent's line-up is the thing worth seeing — it is what you
+  // plan against, and it is visible on preparation day before anyone attacks.
+  // Our own side is knowable from the roster, so it starts hidden there and the
+  // board shows a single column. Desktop has the width for both, so it shows
+  // both. The toggle flips it either way.
+  return `<details class="card wm-card" style="margin-top:10px"${isToday ? " open" : ""}>
+    <summary><strong>War map</strong>${
+      isToday ? ` <span class="pill" style="color:var(--gold);border-color:var(--gold)">TODAY</span>` : ""}
       <span class="muted small"> — their round ${last.round} line-up${
         outmatched ? ` · <span style="color:var(--red)">${outmatched} of yours outmatched</span>` : " · no mismatches"}</span></summary>
+    <div class="row" style="justify-content:flex-end;margin-top:10px">
+      <button type="button" class="wm-toggle" data-wm-toggle aria-pressed="false">
+        <span class="wm-toggle-show">Show my line-up</span>
+        <span class="wm-toggle-hide">Hide my line-up</span>
+      </button>
+    </div>
     <div class="wm-board">
       <div class="wm-head">
-        <div>Your line-up</div><div class="wm-vs">VS</div><div>${escG(opp.name)}</div>
+        <div class="wm-col-you">Your line-up</div>
+        <div class="wm-vs">VS</div>
+        <div>${escG(opp.name)}</div>
       </div>
       ${rows}
     </div>
@@ -626,7 +695,7 @@ function warMapPick(oppTag, idx) {
   const ours = assigned
     .map(k => state.roster.find(x => (x.tag || x.name) === k))
     .filter(Boolean)
-    .sort((a, b) => playerScore(b) - playerScore(a));
+    .sort(ourMapOrder());
   const current = ours[idx];
   const pool = state.roster.filter(p => p.active !== false);
   if (!pool.length) return;
@@ -674,6 +743,19 @@ function renderAssignments() {
   const active = state.roster.filter(p => p.active !== false);
   const myStrength = clanStrength(state.clans.find(c => normTag(c.tag) === normTag(state.myTag)) || {}, Number(state.warSize) || 15);
 
+  // Which war needs you right now. A war you can still attack in ("inWar")
+  // outranks one that has not started ("preparation") — the live one has a
+  // clock on it. Only that opponent's map opens; rendering all 7 open cost ~8
+  // screens of maps for wars nobody is fighting.
+  const todayTag = (() => {
+    if (!mineRounds?.length) return null;
+    const byRound = mineRounds.slice().sort((a, b) => b.round - a.round);
+    const cur = byRound.find(r => r.state === "inWar")
+      || byRound.find(r => r.state === "preparation")
+      || byRound[0];
+    return cur?.opponentTag ? normTag(cur.opponentTag) : null;
+  })();
+
   $g("dayList").innerHTML = opponents.map((opp, i) => {
     const s = clanStrength(opp, Number(state.warSize) || 15);
     const diff = s - myStrength;
@@ -710,13 +792,23 @@ function renderAssignments() {
           </select>
         </div>
         <div style="margin-top:10px">${chips || `<span class="muted small">No lineup yet — hit “Auto-assign all 7 days”.</span>`}</div>
-        ${renderWarMap(opp, assigned)}
+        ${renderWarMap(opp, assigned, todayTag == null || normTag(opp.tag) === todayTag)}
       </div>`;
   }).join("");
 
   $g("dayList").querySelectorAll("[data-pick]").forEach(btn => {
     btn.addEventListener("click", () => {
       warMapPick(btn.dataset.pick, Number(btn.dataset.idx));
+    });
+  });
+
+  // Per-board toggle for our own column. The class lives on the board so the
+  // breakpoint decides the default and this only ever overrides it.
+  $g("dayList").querySelectorAll("[data-wm-toggle]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".wm-card");
+      const on = card.classList.toggle("wm-show-you");
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
     });
   });
 
@@ -907,8 +999,9 @@ function renderRounds() {
     </tr>`).join("");
 
     // Per-round line-ups in map order — the war roster as it was actually set.
-    // Newest first, and the newest is open because a war in preparation shows
-    // its line-up before anyone attacks, which is when scouting is worth most.
+    // Newest first. Only our own newest round opens: on a phone, expanding the
+    // newest for all 8 clans cost ~29 screens of scrolling before you reached
+    // anything you came for. Every other block stays a 46px summary you can tap.
     const roundBlocks = c.rounds.slice().reverse().map((r, idx) => {
       const prep = r.state === "preparation";
       const lineRows = r.lineup.map(p => `<tr>
@@ -920,7 +1013,7 @@ function renderRounds() {
           : `<span class="muted small">${prep ? "not started" : "no attack"}</span>`}</td>
       </tr>`).join("");
 
-      return `<details class="card" style="padding:12px 14px;margin-bottom:8px;background:var(--bg2)"${idx === 0 ? " open" : ""}>
+      return `<details class="card" style="padding:12px 14px;margin-bottom:8px;background:var(--bg2)"${isUs && idx === 0 ? " open" : ""}>
         <summary><strong>Round ${r.round}</strong>
           <span class="muted small"> — ${r.teamSize} v ${r.teamSize}${
             prep ? " · preparation day" : ` · ⭐ ${r.stars} · ${Math.round(r.destruction)}%`}</span></summary>
@@ -939,13 +1032,19 @@ function renderRounds() {
 
         <div class="muted small" style="margin-bottom:6px">Line-up each round</div>
         <div style="margin-bottom:14px">${roundBlocks}</div>
-        <div class="muted small" style="margin-bottom:6px">Across all rounds</div>
         <p class="muted small" style="margin-bottom:10px">
           ${core.length} player${core.length === 1 ? "" : "s"} in every round${rot.length ? `, ${rot.length} rotated in and out` : " — no rotation so far"}.
           ${c.totalAttacks ? `<strong style="color:var(--gold)">⭐ ${c.totalStars}</strong> from ${c.totalAttacks} attacks
             <span class="muted">(${(c.totalStars / c.totalAttacks).toFixed(2)} per attack)</span>.` : ""}
         </p>
-        <table><thead><tr><th>Player</th><th>TH</th><th>Stars</th><th>Rounds</th></tr></thead><tbody>${rows}</tbody></table>
+        <!-- Season totals are research, not war-day data: a full roster table
+             every time costs ~4 screens on a phone. The headline above already
+             carries the summary, so the per-player rows stay one tap away. -->
+        <details class="card" style="padding:12px 14px;background:var(--bg2)">
+          <summary><strong>Across all rounds</strong>
+            <span class="muted small"> — per-player stars &amp; appearances</span></summary>
+          <table style="margin-top:10px"><thead><tr><th>Player</th><th>TH</th><th>Stars</th><th>Rounds</th></tr></thead><tbody>${rows}</tbody></table>
+        </details>
       </div>
     </details>`;
   }).join("");

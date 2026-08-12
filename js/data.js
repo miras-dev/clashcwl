@@ -183,8 +183,90 @@ const DEFAULT_KB = {
   ores: {
     system: "Equipment upgrades cost Ores: Shiny (common levels), Glowy (milestones), Starry (epic milestones). Earned from war stars (main source), Star Bonus, Trader, and events.",
     advice: "Spend Starry Ore only on SS/SSS-tier equipment at breakpoint levels (e.g. Action Figure L21, Spiky Ball L18, Fireball L24). Max hero levels before over-investing in mid-tier equipment.",
+
+    /* Cost to reach each level, indexed by the level being bought (index 1 is
+       level 1, which is free — equipment arrives at level 1).
+
+       Every piece of a given rarity shares one curve: all 20 commons cost the
+       same, all 15 epics cost the same. So this is two arrays rather than a
+       per-item table. Verified against two independent sources that agree on
+       the totals — common 27,260 shiny / 1,920 glowy, epic 56,060 / 3,720 /
+       480 starry.
+
+       Glowy lands on milestones (3, 6, 9, 12, 15, 18…) and Starry only on epic
+       milestones from 9 up, which is what makes breakpoint levels expensive. */
+    costs: {
+      common: [
+        null,
+        { shiny: 0,    glowy: 0,   starry: 0 },
+        { shiny: 120,  glowy: 0,   starry: 0 },
+        { shiny: 240,  glowy: 20,  starry: 0 },
+        { shiny: 400,  glowy: 0,   starry: 0 },
+        { shiny: 600,  glowy: 0,   starry: 0 },
+        { shiny: 840,  glowy: 100, starry: 0 },
+        { shiny: 1120, glowy: 0,   starry: 0 },
+        { shiny: 1440, glowy: 0,   starry: 0 },
+        { shiny: 1800, glowy: 200, starry: 0 },
+        { shiny: 1900, glowy: 0,   starry: 0 },
+        { shiny: 2000, glowy: 0,   starry: 0 },
+        { shiny: 2100, glowy: 400, starry: 0 },
+        { shiny: 2200, glowy: 0,   starry: 0 },
+        { shiny: 2300, glowy: 0,   starry: 0 },
+        { shiny: 2400, glowy: 600, starry: 0 },
+        { shiny: 2500, glowy: 0,   starry: 0 },
+        { shiny: 2600, glowy: 0,   starry: 0 },
+        { shiny: 2700, glowy: 600, starry: 0 },
+      ],
+      epic: [
+        null,
+        { shiny: 0,    glowy: 0,   starry: 0 },
+        { shiny: 120,  glowy: 0,   starry: 0 },
+        { shiny: 240,  glowy: 20,  starry: 0 },
+        { shiny: 400,  glowy: 0,   starry: 0 },
+        { shiny: 600,  glowy: 0,   starry: 0 },
+        { shiny: 840,  glowy: 100, starry: 0 },
+        { shiny: 1120, glowy: 0,   starry: 0 },
+        { shiny: 1440, glowy: 0,   starry: 0 },
+        { shiny: 1800, glowy: 200, starry: 10 },
+        { shiny: 1900, glowy: 0,   starry: 0 },
+        { shiny: 2000, glowy: 0,   starry: 0 },
+        { shiny: 2100, glowy: 400, starry: 20 },
+        { shiny: 2200, glowy: 0,   starry: 0 },
+        { shiny: 2300, glowy: 0,   starry: 0 },
+        { shiny: 2400, glowy: 600, starry: 30 },
+        { shiny: 2500, glowy: 0,   starry: 0 },
+        { shiny: 2600, glowy: 0,   starry: 0 },
+        { shiny: 2700, glowy: 600, starry: 50 },
+        { shiny: 2800, glowy: 0,   starry: 0 },
+        { shiny: 2900, glowy: 0,   starry: 0 },
+        { shiny: 3000, glowy: 600, starry: 100 },
+        { shiny: 3100, glowy: 0,   starry: 0 },
+        { shiny: 3200, glowy: 0,   starry: 0 },
+        { shiny: 3300, glowy: 600, starry: 120 },
+        { shiny: 3400, glowy: 0,   starry: 0 },
+        { shiny: 3500, glowy: 0,   starry: 0 },
+        { shiny: 3600, glowy: 600, starry: 150 },
+      ],
+    },
   },
 };
+
+/* Ore cost to go from one level to another for a piece of a given rarity.
+   Levels are inclusive of `to` and exclusive of `from` — you pay for each
+   level you arrive at. Out-of-range levels are clamped to the rarity's max. */
+function oreCost(rarity, from, to) {
+  const table = KB.ores.costs[String(rarity).toLowerCase() === "epic" ? "epic" : "common"];
+  const max = table.length - 1;
+  const lo = Math.max(1, Math.min(Number(from) || 1, max));
+  const hi = Math.max(lo, Math.min(Number(to) || max, max));
+  const out = { shiny: 0, glowy: 0, starry: 0, levels: hi - lo, from: lo, to: hi, max };
+  for (let l = lo + 1; l <= hi; l++) {
+    out.shiny += table[l].shiny;
+    out.glowy += table[l].glowy;
+    out.starry += table[l].starry;
+  }
+  return out;
+}
 
 function loadKB() {
   try {

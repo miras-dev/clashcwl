@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Google Analytics (GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-RZR3JSMYB6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-RZR3JSMYB6');
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ore &amp; Equipment Calculator — Clash Companion</title>
+  <meta name="description" content="Work out exactly how much Shiny, Glowy and Starry Ore your Clash of Clans hero equipment upgrades cost — per level, to a breakpoint, or to max." />
+  <link rel="canonical" href="https://clashcwl.com/ores.html" />
+  <link rel="icon" type="image/jpeg" href="/assets/logo.jpeg" />
+  <link rel="apple-touch-icon" href="/assets/logo.jpeg" />
+  <meta name="theme-color" content="#0f1420" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Clash Companion" />
+  <meta property="og:title" content="Ore &amp; Equipment Calculator — Clash Companion" />
+  <meta property="og:description" content="Work out exactly how much Shiny, Glowy and Starry Ore your hero equipment upgrades cost — per level, to a breakpoint, or to max." />
+  <meta property="og:url" content="https://clashcwl.com/ores.html" />
+  <meta property="og:image" content="https://clashcwl.com/assets/logo.jpeg" />
+  <meta property="og:image:alt" content="Clash Companion logo" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ore &amp; Equipment Calculator — Clash Companion" />
+  <meta name="twitter:description" content="Work out exactly how much Shiny, Glowy and Starry Ore your hero equipment upgrades cost." />
+  <meta name="twitter:image" content="https://clashcwl.com/assets/logo.jpeg" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav>
+    <div class="logo"><span class="logo-slot"><img src="assets/logo.jpeg" alt="logo" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='assets/logo.png'}else{this.parentElement.classList.add('empty');this.remove()}" /></span>Clash<span>Companion</span></div>
+    <div class="nav-links">
+    <a href="index.html">CWL Helper</a>
+    <a href="analyzer.html">Village Analyzer</a>
+    <a href="ores.html" class="active">Ores &amp; Equipment</a>
+    <a href="cwl.html">CWL Planner</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge">Meta data: July 2026 · TH18</div>
+    <a href="https://github.com/miras-dev/clashcwl" target="_blank" class="github-link" title="Contribute on GitHub">
+      <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+    </a>
+  </nav>
+
+  <main>
+    <h1>Ore &amp; <span class="gold">Equipment</span></h1>
+    <p class="subtitle">
+      What your next equipment upgrade actually costs. Pick a piece and a target level to see the
+      exact <strong>Shiny</strong>, <strong>Glowy</strong> and <strong>Starry</strong> Ore bill —
+      or load your analyzed village and price up every piece you own at once.
+    </p>
+
+    <div class="tool-grid" id="toolGrid">
+      <a class="tool-card" href="analyzer.html">
+        <div class="tool-ico">🏰</div>
+        <div><strong>Village Analyzer</strong><span class="muted small">Load your village first</span></div>
+      </a>
+      <a class="tool-card" href="index.html">
+        <div class="tool-ico">⚔️</div>
+        <div><strong>CWL Helper</strong><span class="muted small">Rank your group, plan all 7 war days</span></div>
+      </a>
+    </div>
+
+    <!-- Single-piece calculator. Deliberately first and open: it answers the
+         one question most people arrive with ("what does this cost?") without
+         needing any village data loaded. -->
+    <div class="card" id="calcCard">
+      <h3 style="margin:0">Cost of one upgrade</h3>
+      <p class="muted small" style="margin-top:4px">
+        Every piece of the same rarity costs the same — commons share one curve, epics share another.
+      </p>
+
+      <div class="ore-controls">
+        <div>
+          <label for="eqSelect">Equipment</label>
+          <select id="eqSelect"></select>
+        </div>
+        <div>
+          <label for="fromLvl">From level</label>
+          <input type="number" id="fromLvl" min="1" value="1" />
+        </div>
+        <div>
+          <label for="toLvl">To level</label>
+          <input type="number" id="toLvl" min="1" value="18" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+        <button class="secondary" data-jump="breakpoint">Jump to breakpoint</button>
+        <button class="secondary" data-jump="max">Jump to max</button>
+      </div>
+
+      <div id="calcResult" style="margin-top:14px"></div>
+    </div>
+
+    <!-- Whole-collection view. Hidden until there is a village to price up,
+         because an empty table teaches nothing. -->
+    <div class="card" id="mineCard" style="display:none">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px">
+        <div>
+          <h3 style="margin:0">Your equipment</h3>
+          <p class="muted small" style="margin-top:4px" id="mineSub"></p>
+        </div>
+        <select id="mineTarget" style="max-width:210px">
+          <option value="breakpoint">Cost to breakpoint</option>
+          <option value="max">Cost to max</option>
+        </select>
+      </div>
+      <div id="mineResult" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card" id="noVillageCard">
+      <h3 style="margin:0">Price up everything you own</h3>
+      <p class="muted small" style="margin-top:6px">
+        Analyze your village once and this page will read the equipment levels you already have,
+        then total what it costs to bring each piece to its meta breakpoint or to max.
+      </p>
+      <div class="row" style="margin-top:12px">
+        <a href="analyzer.html"><button>Go to Village Analyzer</button></a>
+      </div>
+    </div>
+
+    <h2>Full cost tables</h2>
+    <div class="card">
+      <p class="muted small" style="margin-top:0">
+        Cost to <em>reach</em> each level. Glowy Ore lands on milestone levels; Starry Ore only on
+        epic milestones from level 9 up — which is why breakpoints are the expensive part.
+      </p>
+      <details open>
+        <summary><strong>Epic</strong> <span class="muted small">— levels 1–27</span></summary>
+        <div id="epicTable" style="margin-top:10px"></div>
+      </details>
+      <details style="margin-top:10px">
+        <summary><strong>Common</strong> <span class="muted small">— levels 1–18</span></summary>
+        <div id="commonTable" style="margin-top:10px"></div>
+      </details>
+    </div>
+
+    <h2>Builder Potions &amp; Hammer Jam</h2>
+    <div class="card" id="potionCard">
+      <p class="muted small" style="margin-top:0">
+        A Builder Potion runs every Builder at <strong>10× for one hour</strong>. Each Builder banks
+        up to <strong>9 hours</strong> — but only if it has at least 10 hours left to run. A Builder
+        on a short job, or with nothing to do, wastes its share.
+      </p>
+
+      <div class="ore-controls potion-controls">
+        <div>
+          <label for="builderCount">Builders working</label>
+          <input type="number" id="builderCount" min="0" max="6" value="6" />
+        </div>
+        <div>
+          <label for="potionCount">Potions</label>
+          <input type="number" id="potionCount" min="0" value="1" />
+        </div>
+        <div>
+          <label for="medalBudget">CWL medals to spend</label>
+          <input type="number" id="medalBudget" min="0" step="10" value="0" />
+        </div>
+      </div>
+
+      <label style="margin-top:14px" for="shortJobs">
+        Of those Builders, how many have under 10 hours left?
+      </label>
+      <input type="number" id="shortJobs" min="0" max="6" value="0" />
+
+      <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+        <label class="ore-check">
+          <input type="checkbox" id="hammerJam" /> Hammer Jam is running (50% off time)
+        </label>
+      </div>
+
+      <div id="potionResult" style="margin-top:14px"></div>
+    </div>
+
+    <h2>Where Ore comes from</h2>
+    <div class="card">
+      <p class="muted small" style="margin-top:0">
+        Ore income is not published as fixed numbers the way costs are, so treat these as the
+        sources to work rather than a rate to budget against.
+      </p>
+      <ul class="muted" style="color:var(--text);line-height:1.7">
+        <li><strong>War attacks</strong> — the main source. Scoring at least one star claims the full Ore from that base.</li>
+        <li><strong>Daily Star Bonus</strong> — from TH8 once the Blacksmith is built; event multipliers (2×–5×) apply.</li>
+        <li><strong>Trader</strong> — 10 free Glowy Ore on each weekly refresh, plus Ore sometimes stocked for gems.</li>
+        <li><strong>Clan Games &amp; events</strong> — periodic lump sums.</li>
+      </ul>
+      <p class="muted small" style="margin-bottom:0">
+        <strong>Note:</strong> Hammer Jam does <em>not</em> discount equipment. Its 50% off applies to
+        buildings, walls, traps, heroes and the lab — the Blacksmith is excluded, so Ore costs are
+        the same during the event.
+      </p>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ores.js"></script>
+</body>
+</html>
