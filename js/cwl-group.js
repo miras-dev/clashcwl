@@ -589,29 +589,32 @@ function agoLabel(date) {
    the difference between trusting the number and checking it.
 
    Trophy change carries the sign the game shows: an attack that took the whole
-   pool reads +40, and a defence held at 0 stars reads +0 rather than blank —
+   pool reads +40, and a defence held at 0 stars reads +0 rather than blank;
    those are the ones that prove the base is holding. */
 function battleLogPanel(summary) {
   const battles = summary.battles || [];
   const attacks = battles.filter((b) => b.isAttack);
   const defences = battles.filter((b) => !b.isAttack);
 
-  const stars = (n) => `${"★".repeat(n)}${"☆".repeat(3 - n)}`;
-  const row = (b) => `<div class="bl-row">
+  /* A count reads faster than three glyphs you have to tally, so the star total
+     is written out. Which count deserves the eye differs by side: on attack a
+     three-star is the result worth spotting, on defence a ONE-star is, because
+     that is the base that held. */
+  const row = (highlight) => (b) => `<div class="bl-row">
     <span class="bl-troph${b.trophyChange > 0 ? " up" : ""}">${b.trophyChange >= 0 ? "+" : ""}${b.trophyChange}</span>
-    <span class="bl-stars${b.stars === 3 ? " full" : ""}">${stars(b.stars)}</span>
+    <span class="bl-stars${highlight(b.stars) ? " full" : ""}">${b.stars}★</span>
     <span class="bl-dest">${Math.round(b.destruction)}%</span>
     <span class="bl-when muted">${escG(agoLabel(b.timestamp))}</span>
   </div>`;
 
-  const col = (label, list, empty) => `<div class="bl-col">
+  const col = (label, list, empty, highlight) => `<div class="bl-col">
     <div class="bl-head">${label} <span class="muted small">${list.length}</span></div>
-    ${list.length ? list.map(row).join("") : `<div class="muted small" style="padding:6px 2px">${empty}</div>`}
+    ${list.length ? list.map(row(highlight)).join("") : `<div class="muted small" style="padding:6px 2px">${empty}</div>`}
   </div>`;
 
   return `<div class="bl-panel">
-    ${col("Attacks", attacks, "No attacks in this window.")}
-    ${col("Defenses", defences, "No defences on record.")}
+    ${col("Attacks", attacks, "No attacks in this window.", (n) => n === 3)}
+    ${col("Defenses", defences, "No defences on record.", (n) => n === 1)}
   </div>`;
 }
 

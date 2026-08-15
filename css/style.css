@@ -567,18 +567,18 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
   padding-bottom: 6px; border-bottom: 1px solid var(--border);
 }
 .bl-row {
-  display: grid; grid-template-columns: 52px 46px 52px 1fr;
+  display: grid; grid-template-columns: 52px 40px 52px 1fr;
   gap: 8px; align-items: center;
   padding: 4px 0; font-size: .8rem;
 }
-/* Each figure gets its own chip so the eye can run down a column — the game
+/* Each figure gets its own chip so the eye can run down a column, the game
    shows them the same way. */
 .bl-troph, .bl-stars, .bl-dest {
   background: var(--card2); border-radius: 6px;
   padding: 3px 6px; text-align: center; font-weight: 700;
 }
 .bl-troph.up { color: var(--green); }
-.bl-stars { letter-spacing: 1px; color: var(--muted); }
+.bl-stars { color: var(--muted); }
 .bl-stars.full { color: var(--gold); }
 .bl-when { font-size: .74rem; }
 
