@@ -57,10 +57,6 @@
     .matchup .vs { font-weight: 800; color: var(--muted); font-size: .8rem; }
     .player-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: .78rem; margin: 2px; }
     .player-chip .th { font-weight: 800; color: var(--gold); }
-    .tier-label { font-size: .7rem; font-weight: 800; padding: 2px 7px; border-radius: 5px; }
-    .t-strong { background: var(--green); color: #063d22; }
-    .t-mid { background: var(--gold); color: #3a2c00; }
-    .t-weak { background: var(--muted); color: #1c2233; }
     .day-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
     .clan-row:hover { background: rgba(255,255,255,.03); }
     .clan-detail { padding: 18px; background: var(--bg2); border-left: 3px solid var(--primary); border-bottom: 1px solid var(--border); }
@@ -249,31 +245,9 @@
       </div>
     </div>
 
-    <!-- ── Step 4: roster ───────────────────────────────────── -->
-    <!-- Collapsed by default: a 50-player roster pushed the war-day plan far
-         below the fold on a phone, and it is reference data rather than
-         something you read on every visit. -->
-    <div id="rosterSection" style="display:none">
-      <h2>4 · Your roster</h2>
-      <details class="card">
-        <summary><strong>Your roster</strong>
-          <span class="muted small" id="rosterCount"></span></summary>
-        <div style="margin-top:14px">
-          <div class="row" style="justify-content:space-between">
-            <p class="muted small" style="margin:0">
-              Loaded from your clan. Players are tiered by Town Hall + hero levels; toggle anyone
-              who isn't participating this season.
-            </p>
-            <button id="refreshRosterBtn" class="secondary">Reload roster</button>
-          </div>
-          <div id="rosterList" style="margin-top:14px"></div>
-        </div>
-      </details>
-    </div>
-
-    <!-- ── Step 5: eligibility ──────────────────────────────── -->
+    <!-- ── Step 4: eligibility ──────────────────────────────── -->
     <div id="eligibilitySection" style="display:none">
-      <h2>5 · Who should play CWL</h2>
+      <h2>4 · Who should play CWL</h2>
       <p class="muted" style="margin-top:-8px; margin-bottom:16px">
         Ranks your clan on <strong>recent Ranked form</strong> — attacks actually used and
         trophies earned per attack — alongside Town Hall, heroes and war stars. Someone who
@@ -287,16 +261,17 @@
       <div id="eligibilityList"></div>
     </div>
 
-    <!-- ── Step 6: assignments ──────────────────────────────── -->
+    <!-- ── Step 5: assignments ──────────────────────────────── -->
     <div id="assignSection" style="display:none">
-      <h2>6 · War-day assignments</h2>
+      <h2>5 · War-day assignments</h2>
       <p class="muted" style="margin-top:-8px; margin-bottom:16px">
-        Auto-matched: your strongest attackers are saved for the toughest opponents, weaker
-        players get the easier days. Change any day's roster with the dropdowns.
+        Auto-matched on <strong>ranked form</strong> from step 4: your best attackers are saved
+        for the toughest opponents, weaker players get the easier days. Change any day's roster
+        with the dropdowns.
         <br /><span class="small">Load round history above and these follow the real war
         schedule; without it they are ordered hardest-first, not by war day.</span>
       </p>
-      <div class="row" style="margin-bottom:14px">
+      <div class="row" id="assignControls" style="margin-bottom:14px">
         <button id="autoAssignBtn">Auto-assign all 7 days</button>
         <button id="clearAssignBtn" class="secondary">Clear assignments</button>
       </div>

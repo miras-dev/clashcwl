@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "clash-companion",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 8642,
+      "autoPort": true
+    }
+  ]
+}

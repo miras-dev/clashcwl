@@ -171,7 +171,7 @@ function strengthColor(s) {
 // Every button that fires an API call. A button missing from this list would be
 // disabled by its own setBusy(true) and never re-enabled, stranding it after the
 // first click.
-const BUSY_BUTTONS = "#addClanBtn,#loadMyClanBtn,#autoGroupBtn,#refreshRosterBtn,#loadEligibilityBtn";
+const BUSY_BUTTONS = "#addClanBtn,#loadMyClanBtn,#autoGroupBtn,#loadEligibilityBtn";
 
 function setBusy(btn, on, label) {
   if (!btn) return;
@@ -473,50 +473,57 @@ function renderAnalysis() {
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-/* ---------------- roster ---------------- */
-function playerTier(p, all) {
-  const scores = all.map(playerScore).sort((a, b) => b - a);
-  const s = playerScore(p);
-  const idx = scores.indexOf(s);
-  if (idx < scores.length / 3) return "strong";
-  if (idx < (scores.length * 2) / 3) return "mid";
-  return "weak";
+/* ---------------- ranking our own players ----------------
+ *
+ * Our side is ranked on ranked form (js/eligibility.js), never on playerScore.
+ * Town Hall, hero levels and war stars measure what someone has accumulated,
+ * not whether they are attacking now, so ranking the roster that way put maxed
+ * accounts that have stopped playing above people actually turning up — the
+ * exact failure eligibility.js exists to correct.
+ *
+ * playerScore survives only for OPPONENT clans (rosterPower, the clan-detail
+ * table) where we have clan-deep data and no battle logs at all, and as
+ * ourMapOrder's last-resort tie-break when the game itself has never ranked a
+ * player.
+ *
+ * The cost is that assignments need the step-4 analysis to have been run. That
+ * is deliberate: a line-up built from Town Hall numbers looks just as
+ * authoritative as one built from form, and quietly showing the worse ranking
+ * is how the old roster section misled in the first place.
+ */
+
+/* Form score by player key, or null before the analysis has been run. */
+function formRanks() {
+  if (!eligibility) return null;
+  const byKey = new Map();
+  eligibility.members.forEach((m) => {
+    // Rank on the same figure the step-4 table shows, so the two orderings can
+    // never disagree. Unrated players and non-attackers keep a null and sort
+    // last rather than being scored on capability we cannot see.
+    const usable = m.rated && m.summary.attackCount > 0;
+    byKey.set(m.tag, usable ? m.score : null);
+    byKey.set(m.name, usable ? m.score : null);
+  });
+  return byKey;
 }
 
-function renderRoster() {
-  const show = state.roster.length > 0;
-  $g("rosterSection").style.display = show ? "block" : "none";
-  if (!show) return;
+/* Comparator over state.roster entries, best form first.
+ *
+ * Players with no readable record sort last as a block but stay selectable:
+ * when the API fails for several accounts you still have to field fifteen
+ * people, and an unmeasured player is a gap in our data rather than a verdict
+ * on them. */
+function byFormDesc(ranks) {
+  const of = (p) => {
+    const v = ranks.get(p.tag) ?? ranks.get(p.name);
+    return v == null ? -1 : v;
+  };
+  return (a, b) => of(b) - of(a);
+}
 
-  const sorted = state.roster.slice().sort((a, b) => playerScore(b) - playerScore(a));
-  const active = sorted.filter(p => p.active !== false);
-  // The section is collapsed, so the summary has to carry the headline.
-  const count = $g("rosterCount");
-  if (count) count.textContent = ` — ${active.length} active of ${sorted.length}`;
-  $g("rosterList").innerHTML = `
-    <p class="muted small">${active.length} active of ${sorted.length} · war size ${state.warSize}</p>
-    <table style="margin-top:10px"><thead><tr>
-      <th>#</th><th>Player</th><th>TH</th><th>Heroes</th><th>Tier</th><th>In CWL</th>
-    </tr></thead><tbody>` +
-    sorted.map((p, i) => {
-      const tier = playerTier(p, active.length ? active : sorted);
-      return `<tr style="${p.active === false ? "opacity:.45" : ""}">
-        <td class="muted">${i + 1}</td>
-        <td><strong>${escG(p.name)}</strong><div class="muted small">${escG(p.tag || "")}</div></td>
-        <td><span class="player-chip"><span class="th">TH${p.thLevel || "?"}</span></span></td>
-        <td class="muted small">${p.heroSum ? "Σ " + p.heroSum : "—"}</td>
-        <td><span class="tier-label t-${tier}">${tier.toUpperCase()}</span></td>
-        <td><input type="checkbox" data-toggle="${escG(p.tag || p.name)}" ${p.active === false ? "" : "checked"} style="width:16px;height:16px;cursor:pointer" /></td>
-      </tr>`;
-    }).join("") + `</tbody></table>`;
-
-  $g("rosterList").querySelectorAll("[data-toggle]").forEach(cb => {
-    cb.addEventListener("change", () => {
-      const key = cb.dataset.toggle;
-      const p = state.roster.find(x => (x.tag || x.name) === key);
-      if (p) { p.active = cb.checked; saveState(); renderRoster(); renderAssignments(); }
-    });
-  });
+/* Everyone available to be fielded, best form first. */
+function activeRoster(ranks) {
+  return state.roster.slice().sort(byFormDesc(ranks));
 }
 
 /* ---------------- CWL eligibility ----------------
@@ -541,6 +548,51 @@ function confidenceLabel(c) {
   if (c >= 0.8) return { text: "solid", cls: "" };
   if (c >= 0.5) return { text: "partial", cls: "muted" };
   return { text: "few attacks", cls: "muted" };
+}
+
+/* How long ago, in the game's own phrasing. Recent battles get real units
+   because "17 hours ago" tells you whether someone is playing today; older ones
+   collapse to days, which is all the precision that still matters. */
+function agoLabel(date) {
+  if (!date) return "—";
+  const ms = Date.now() - new Date(date).getTime();
+  const h = ms / 3600000;
+  if (h < 1) return "just now";
+  if (h < 24) return `${Math.round(h)} hour${Math.round(h) === 1 ? "" : "s"} ago`;
+  const d = h / 24;
+  if (d < 2) return "a day ago";
+  return `${Math.round(d)}d`;
+}
+
+/* Every ranked battle behind a player's score, attacks beside defences.
+   The score says how they are doing; this says what actually happened, which is
+   the difference between trusting the number and checking it.
+
+   Trophy change carries the sign the game shows: an attack that took the whole
+   pool reads +40, and a defence held at 0 stars reads +0 rather than blank —
+   those are the ones that prove the base is holding. */
+function battleLogPanel(summary) {
+  const battles = summary.battles || [];
+  const attacks = battles.filter((b) => b.isAttack);
+  const defences = battles.filter((b) => !b.isAttack);
+
+  const stars = (n) => `${"★".repeat(n)}${"☆".repeat(3 - n)}`;
+  const row = (b) => `<div class="bl-row">
+    <span class="bl-troph${b.trophyChange > 0 ? " up" : ""}">${b.trophyChange > 0 ? "+" : ""}${b.trophyChange}</span>
+    <span class="bl-stars${b.stars === 3 ? " full" : ""}">${stars(b.stars)}</span>
+    <span class="bl-dest">${Math.round(b.destruction)}%</span>
+    <span class="bl-when muted">${escG(agoLabel(b.timestamp))}</span>
+  </div>`;
+
+  const col = (label, list, empty) => `<div class="bl-col">
+    <div class="bl-head">${label} <span class="muted small">${list.length}</span></div>
+    ${list.length ? list.map(row).join("") : `<div class="muted small" style="padding:6px 2px">${empty}</div>`}
+  </div>`;
+
+  return `<div class="bl-panel">
+    ${col("Attacks", attacks, "No attacks in this window.")}
+    ${col("Defenses", defences, "No defences on record.")}
+  </div>`;
 }
 
 function renderEligibility() {
@@ -579,10 +631,11 @@ function renderEligibility() {
     // those want opposite decisions.
     const v = VERDICT[m.verdict] || VERDICT.no;
 
-    return `<tr style="${inRoster ? "" : "opacity:.55"}">
+    return `<tr class="elig-row${s.hasData ? " elig-clickable" : ""}" ${s.hasData ? `data-battles="${escG(m.tag)}"` : ""} style="${inRoster ? "" : "opacity:.55"}">
       <td class="muted">${m.rank}</td>
       <td><strong>${escG(m.name)}</strong>
         ${inRoster ? `<span class="pill" style="color:var(--green); border-color:var(--green)">P${m.band}</span>` : ""}
+        ${s.hasData ? `<span class="elig-caret" aria-hidden="true">▸</span>` : ""}
         <div class="muted small">${escG(m.tag)}${m.leagueTier ? " · " + escG(m.leagueTier) : ""}</div></td>
       <td><span class="player-chip"><span class="th">TH${m.thLevel || "?"}</span></span></td>
       <td>${scoreCell}</td>
@@ -599,7 +652,11 @@ function renderEligibility() {
           <span class="muted"> — ${escG(m.rationale)}</span>
         </div>
       </td>
-    </tr>`;
+    </tr>
+    ${s.hasData ? `<tr class="elig-battles" data-for="${escG(m.tag)}" hidden>
+      <td></td>
+      <td colspan="7" style="padding-top:0; border-top:none">${battleLogPanel(s)}</td>
+    </tr>` : ""}`;
   }).join("");
 
   // Which data the ranking is standing on. Without this the window column looks
@@ -645,6 +702,19 @@ function renderEligibility() {
       <th>#</th><th>Player</th><th>TH</th><th>Score</th><th>Form</th>
       <th>Ranked attacks vs league par</th><th>Evidence</th><th>Window</th>
     </tr></thead><tbody>${rows}</tbody></table>${sourceNote}${truncWarn}${warn}`;
+
+  // Clicking a player opens the battles behind their score. Rows without a
+  // readable log carry no handle, so there is nothing to open on a player we
+  // could not measure.
+  $g("eligibilityList").querySelectorAll("[data-battles]").forEach((tr) => {
+    tr.addEventListener("click", () => {
+      const tag = tr.dataset.battles;
+      const panel = $g("eligibilityList").querySelector(`.elig-battles[data-for="${CSS.escape(tag)}"]`);
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
+      tr.classList.toggle("elig-open", !panel.hidden);
+    });
+  });
 }
 
 /* Definitions for every column, with the actual arithmetic.
@@ -830,6 +900,8 @@ async function loadEligibility() {
       + (usedStored ? ` · ${usedStored} using collected history` : "");
     out.style.color = "var(--green)";
     renderEligibility();
+    // Assignments rank on form, so they were gated until now.
+    renderAssignments();
   } catch (e) {
     // Loading the clan already spends much of the per-IP budget, so running this
     // straight afterwards is the most likely way to hit the limit. Say what to do.
@@ -844,12 +916,14 @@ async function loadEligibility() {
 
 /* ---------------- assignments ----------------
    Opponents sorted hardest → easiest. Each war day fields `warSize` players:
-   the hardest opponents get the highest-scoring available attackers.        */
+   the hardest opponents get the best-form available attackers.              */
 function autoAssign() {
+  const ranks = formRanks();
+  if (!ranks) return;   // step 4 not run — renderAssignments explains why
   const opponents = state.clans
     .filter(c => normTag(c.tag) !== normTag(state.myTag))
     .sort((a, b) => clanStrength(b, Number(state.warSize) || 15) - clanStrength(a, Number(state.warSize) || 15));
-  const active = state.roster.filter(p => p.active !== false).sort((a, b) => playerScore(b) - playerScore(a));
+  const active = activeRoster(ranks);
   if (!opponents.length || !active.length) return;
 
   const size = Math.min(Number(state.warSize) || 15, active.length);
@@ -876,27 +950,32 @@ function autoAssign() {
    played.
 
    The map position CoC assigns is a whole-base strength ranking — defenses,
-   walls, pets, troop levels, the lot. playerScore only sees Town Hall, hero sum
-   and war stars, so it mis-sorts our side: two TH17s with identical heroes can
-   sit ten positions apart in game because one has maxed defenses. Their side
-   never had this problem, because it reads a real mapPosition straight from the
-   war.
+   walls, pets, troop levels, the lot. Nothing we compute sees that: form
+   measures attacking, and the API exposes no defensive building levels at all.
+   Their side never had this problem, because it reads a real mapPosition
+   straight from the war.
 
    So do the same for ours. Average each player's mapPosition over the rounds
    they were actually fielded in (recent rounds weighted heavier, since a base
    that upgraded mid-season should drift), and sort by that. Players with no
    history — a new member, or someone who has not warred yet — have no in-game
-   ranking to read, so they keep playerScore and sort below everyone who does.
+   ranking to read, so they fall back to form and sort below everyone who does.
 
-   Returns a comparator, or the playerScore one when we have no history at all. */
+   This is a map ORDER, not a selection: it decides where the players already
+   assigned to a day line up against the enemy map, so it stays on mapPosition
+   rather than form. Who gets fielded at all is decided in step 4.
+
+   Returns a comparator, falling back to form when we have no history at all. */
 function ourMapOrder() {
+  const ranks = formRanks();
+  const byForm = ranks ? byFormDesc(ranks) : () => 0;
   const mine = state.rounds?.clans?.find(c => normTag(c.tag) === normTag(state.myTag));
   const rounds = mine?.rounds;
-  if (!rounds?.length) return (a, b) => playerScore(b) - playerScore(a);
+  if (!rounds?.length) return byForm;
 
   // Newest round counts most: a base upgraded mid-season should move.
   const played = rounds.filter(r => r.lineup?.length).sort((a, b) => a.round - b.round);
-  if (!played.length) return (a, b) => playerScore(b) - playerScore(a);
+  if (!played.length) return byForm;
 
   const acc = new Map(); // key -> { sum, weight }
   played.forEach((r, i) => {
@@ -923,7 +1002,7 @@ function ourMapOrder() {
     if (ra != null && rb != null) return ra - rb;
     if (ra != null) return -1;
     if (rb != null) return 1;
-    return playerScore(b) - playerScore(a);
+    return byForm(a, b);
   };
 }
 
@@ -1025,7 +1104,9 @@ function warMapPick(oppTag, idx) {
     .filter(Boolean)
     .sort(ourMapOrder());
   const current = ours[idx];
-  const pool = state.roster.filter(p => p.active !== false);
+  const ranks = formRanks();
+  if (!ranks) return;
+  const pool = activeRoster(ranks);
   if (!pool.length) return;
 
   const names = pool.map((p, i) =>
@@ -1068,7 +1149,24 @@ function renderAssignments() {
   $g("assignSection").style.display = show ? "block" : "none";
   if (!show) return;
 
-  const active = state.roster.filter(p => p.active !== false);
+  // Assignments rank our side on ranked form, which only exists once step 4 has
+  // run. Rather than fall back to a Town Hall ordering — which looks just as
+  // authoritative on screen while being much worse advice — say what is missing
+  // and stop.
+  const ranks = formRanks();
+  $g("assignControls").style.display = ranks ? "" : "none";
+  if (!ranks) {
+    $g("dayList").innerHTML = `
+      <div class="card">
+        <p class="muted" style="margin:0">
+          Run <strong>Analyse ranked form</strong> in step 4 first. Day rosters are picked on
+          recent attacking form, so there is nothing to order these by until that has been read.
+        </p>
+      </div>`;
+    return;
+  }
+
+  const active = activeRoster(ranks);
   const myStrength = clanStrength(state.clans.find(c => normTag(c.tag) === normTag(state.myTag)) || {}, Number(state.warSize) || 15);
 
   // Which war needs you right now. A war you can still attack in ("inWar")
@@ -1144,7 +1242,7 @@ function renderAssignments() {
     sel.addEventListener("change", () => {
       const mode = sel.value;
       if (!mode) return;
-      const pool = active.slice().sort((a, b) => playerScore(b) - playerScore(a));
+      const pool = active.slice();
       const size = Math.min(Number(state.warSize) || 15, pool.length);
       let picked;
       if (mode === "strongest") picked = pool.slice(0, size);
@@ -1172,7 +1270,7 @@ async function loadRosterFor(tag) {
         .filter(h => !h.village || h.village === "home")
         .reduce((a, h) => a + (h.level || 0), 0);
     } catch {}
-    roster.push({ name: p.name, tag: p.tag, thLevel: p.townHallLevel || 0, heroSum, active: true });
+    roster.push({ name: p.name, tag: p.tag, thLevel: p.townHallLevel || 0, heroSum });
   }
   state.roster = roster;
   saveState();
@@ -1180,7 +1278,6 @@ async function loadRosterFor(tag) {
   eligibility = null;
   $g("eligibilityList").innerHTML = "";
   $g("eligibilityMsg").textContent = "";
-  renderRoster();
   renderEligibility();
   renderAssignments();
 }
@@ -1287,15 +1384,6 @@ $g("clearGroupBtn").addEventListener("click", () => {
   saveState(); renderAll();
 });
 
-$g("refreshRosterBtn").addEventListener("click", async () => {
-  if (!state.myTag) return;
-  const btn = $g("refreshRosterBtn");
-  setBusy(btn, true, "Reloading…");
-  msg("Reloading your roster…", "busy");
-  try { await loadRosterFor(state.myTag); msg(`✔ Roster reloaded — ${state.roster.length} players.`, "ok"); }
-  catch (e) { msg("⚠️ " + e.message, "error"); }
-  finally { setBusy(btn, false); }
-});
 
 $g("loadEligibilityBtn").addEventListener("click", loadEligibility);
 $g("autoAssignBtn").addEventListener("click", autoAssign);
@@ -1407,7 +1495,7 @@ function roundsMsg(text, kind) {
 
 $g("loadRoundsBtn").addEventListener("click", loadRounds);
 
-function renderAll() { renderClans(); renderAnalysis(); renderRoster(); renderEligibility(); renderAssignments(); renderRounds(); }
+function renderAll() { renderClans(); renderAnalysis(); renderEligibility(); renderAssignments(); renderRounds(); }
 
 $g("myClanTag").value = state.myTag || "";
 $g("leagueSelect").value = state.league || "Master League I";

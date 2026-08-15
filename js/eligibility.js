@@ -204,7 +204,7 @@ function formConfidence(summary) {
  * Written as sentences rather than tags because the interesting cases are the
  * ones needing a "because": a low score that is actually fine, or a high one
  * resting on three attacks. */
-function explain({ player, summary, rank, par, score, form, confidence, rated, band, tripledAgainst }) {
+function explain({ player, summary, rank, par, score, form, confidence, rated, band, tripledAgainst, bandRelative }) {
   const league = player.leagueTier || "an unknown league";
   const atk = summary.attackCount;
   const avg = summary.avgAttackGain;
@@ -270,11 +270,17 @@ function explain({ player, summary, rank, par, score, form, confidence, rated, b
   // Why they sit in the band they do. Band 2 is the defensive core, so it is
   // the one place where the base matters more than the attacks.
   if (band === 1) {
-    parts.push(`Reaching Legend I takes sustained form under the game's harshest modifiers, `
-      + `which is a stronger claim on a slot than any single week of attacks`);
+    parts.push(bandRelative
+      ? `${league} is the top of your clan's ladder, and climbing there takes sustained form — `
+        + `a stronger claim on a slot than any single week of attacks`
+      : `Reaching Legend I takes sustained form under the game's harshest modifiers, `
+        + `which is a stronger claim on a slot than any single week of attacks`);
   } else if (band === 2) {
-    parts.push(`A maxed TH18 in ${league}, so they are part of the defensive core — the point `
-      + `is a base the opposition cannot casually three-star`);
+    parts.push(bandRelative
+      ? `One of the strongest bases in your clan at ${league}, so they are part of the defensive `
+        + `core — the point is a base the opposition cannot casually three-star`
+      : `A maxed TH18 in ${league}, so they are part of the defensive core — the point `
+        + `is a base the opposition cannot casually three-star`);
   }
 
   // Measured defensive record, where there is enough of it. This beats hero
@@ -345,6 +351,71 @@ const MAXED_HERO_SUM = 470;      // ~480 is a full TH18 hero roster; allow one m
 const LEGEND_III = 34;
 const LEGEND_I = 36;
 
+/* The bands above are written for a clan that reaches Legend. Applied literally
+   to a TH11 clan whose best player is in Golem League, every single member
+   falls to band 4 and the whole ranking says nothing — the bands stop being a
+   priority order and become a constant.
+ *
+ * So the cutoffs are relative to the clan being ranked, not to the top of the
+ * ladder. A clan that genuinely reaches Legend keeps the absolute thresholds,
+ * because those tiers mean something specific and a Legend I player should not
+ * be demoted for having strong clanmates. Below that the same shape is applied
+ * to the clan's own spread: its top tier stands in for Legend I, one rung down
+ * for Legend III, and "maxed" becomes "maxed for this clan" rather than TH18.
+ *
+ * Returns the thresholds scoreMember/priorityBand should use. */
+function bandThresholds(players) {
+  const ranks = (players || [])
+    .map((p) => tierRank(p.leagueTier))
+    .filter((r) => r != null);
+  const ths = (players || []).map((p) => Number(p.thLevel) || 0).filter(Boolean);
+  const heroSums = (players || []).map((p) => Number(p.heroSum) || 0).filter(Boolean);
+
+  // Not enough to reason about — fall back to the absolute ladder.
+  if (ranks.length < 4) {
+    return { top: LEGEND_I, mid: LEGEND_III, maxedTh: MAXED_TH, maxedHeroSum: MAXED_HERO_SUM, relative: false };
+  }
+
+  const sorted = ranks.slice().sort((a, b) => b - a);
+  const best = sorted[0];
+
+  // A clan that actually reaches Legend is judged on the real thing.
+  if (best >= LEGEND_I) {
+    return { top: LEGEND_I, mid: LEGEND_III, maxedTh: MAXED_TH, maxedHeroSum: MAXED_HERO_SUM, relative: false };
+  }
+
+  // A clan sitting entirely in one tier has no ladder spread to divide on. Any
+  // cutoff would put everyone in the same band, which carries no more
+  // information than putting everyone in band 4 — so skip the tier split and
+  // let form alone order them.
+  if (best === sorted[sorted.length - 1]) {
+    return { top: Infinity, mid: Infinity, maxedTh: Infinity, maxedHeroSum: Infinity, relative: true };
+  }
+
+  // Otherwise anchor on the clan's own top of ladder. Use the 90th percentile
+  // rather than the single highest, so one outlier who climbed far above the
+  // rest does not define a band only they can occupy.
+  const pct = (arr, p) => arr[Math.min(arr.length - 1, Math.floor(arr.length * p))];
+  const top = pct(sorted, 0.10);
+  // One meaningful rung below the top band, floored so the two never collapse
+  // into each other on a clan with a narrow spread.
+  let mid = Math.min(top - 1, pct(sorted, 0.40));
+  // When a clan is one or two players above a single flat tier, no cutoff can
+  // split the tail — every candidate value either includes all of it or none.
+  // Sweeping it into band 3 would label the whole clan "upper-tier attacker",
+  // so drop the middle band entirely and let the tail sit in band 4 where it
+  // belongs. Band 3 reappears as soon as there is real spread to divide.
+  const lowest = sorted[sorted.length - 1];
+  if (mid <= lowest) mid = top;
+
+  const topTh = Math.max(...ths, 0);
+  const sortedHeroes = heroSums.slice().sort((a, b) => b - a);
+  // "Maxed for this clan" — the upper end of its own hero range, not TH18's.
+  const maxedHeroSum = sortedHeroes.length ? pct(sortedHeroes, 0.25) : 0;
+
+  return { top, mid: Math.max(mid, 0), maxedTh: topTh, maxedHeroSum, relative: true };
+}
+
 /* A maxed base only helps if its owner turns up. Without this floor, band 2
    fills on hero levels alone: four maxed players scoring 46-53 took slots from
    attackers scoring 93-96 who simply had not maxed their heroes. Priority
@@ -360,14 +431,17 @@ function tripledAgainstRate(summary) {
   return defs.filter((b) => b.stars === 3).length / defs.length;
 }
 
-function priorityBand(player, summary) {
+function priorityBand(player, summary, thresholds = null) {
+  const t = thresholds || { top: LEGEND_I, mid: LEGEND_III, maxedTh: MAXED_TH, maxedHeroSum: MAXED_HERO_SUM };
   const rank = tierRank(player.leagueTier);
-  const maxed = (player.thLevel || 0) >= MAXED_TH
-    && (Number(player.heroSum) || 0) >= MAXED_HERO_SUM;
+  const maxed = (player.thLevel || 0) >= t.maxedTh
+    && (Number(player.heroSum) || 0) >= t.maxedHeroSum;
 
-  if (rank >= LEGEND_I) return 1;
-  if (maxed && rank >= LEGEND_III) return 2;
-  if (rank >= LEGEND_III) return 3;
+  // An unknown tier cannot claim a band it might not deserve.
+  if (rank == null) return 4;
+  if (rank >= t.top) return 1;
+  if (maxed && rank >= t.mid) return 2;
+  if (rank >= t.mid) return 3;
   return 4;
 }
 
@@ -378,9 +452,19 @@ const BAND_LABEL = {
   4: "Everyone else",
 };
 
+/* The absolute labels name real tiers, which would be wrong on a clan that
+   never reaches them. When the bands are relative, describe the role each band
+   plays in this clan instead. */
+const BAND_LABEL_RELATIVE = {
+  1: "Top of your ladder",
+  2: "Strongest bases · defensive core",
+  3: "Upper-tier attacker",
+  4: "Everyone else",
+};
+
 /* Score one member. `player` is a clan-deep player row; `battlelog` is the raw
    API response for that member, or null if the call failed. */
-function scoreMember(player, battlelog) {
+function scoreMember(player, battlelog, thresholds = null) {
   const summary = summariseRanked(battlelog);
   const rank = tierRank(player.leagueTier);
   const form = formScore(summary, player.leagueTier);
@@ -398,17 +482,19 @@ function scoreMember(player, battlelog) {
   let score = rated ? form * (0.5 + 0.5 * confidence) * 100 : 0;
 
   const par = expectedAttackGain(rank);
-  const band = priorityBand(player, summary);
+  const band = priorityBand(player, summary, thresholds);
   const tripledAgainst = tripledAgainstRate(summary);
   const { verdict, rationale } = explain({
     player, summary, rank, par, score, form, confidence, rated, band, tripledAgainst,
+    bandRelative: !!thresholds?.relative,
   });
 
   return {
     verdict,
     rationale,
     band,
-    bandLabel: BAND_LABEL[band],
+    bandLabel: (thresholds?.relative ? BAND_LABEL_RELATIVE : BAND_LABEL)[band],
+    bandRelative: !!thresholds?.relative,
     tripledAgainst,
     tag: player.tag,
     name: player.name,
@@ -437,8 +523,12 @@ function rankClan(players, battlelogs, { warSize = 15 } = {}) {
   const logsByTag = new Map();
   for (const entry of battlelogs || []) logsByTag.set(entry.tag, entry.battlelog);
 
+  // Bands are calibrated against this clan before anyone is scored, so a clan
+  // that never reaches Legend still gets a real priority order.
+  const thresholds = bandThresholds(players);
+
   const scored = (players || [])
-    .map((p) => scoreMember(p, logsByTag.get(p.tag) || null))
+    .map((p) => scoreMember(p, logsByTag.get(p.tag) || null, thresholds))
     // League first, then score within it. Everyone in Legend I comes before
     // everyone in Legend II, and so on down the ladder, because a player's tier
     // is the harder-won fact: score measures a few days of form, but reaching

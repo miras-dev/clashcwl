@@ -535,3 +535,45 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
   .potion-controls > :last-child { grid-column: 1 / -1; }
   .ore-chip { font-size: .88rem; padding: 5px 10px; }
 }
+
+/* ---------------- battle log panel ----------------
+   The battles behind a player's score, opened by clicking their row. Attacks
+   and defences sit side by side so a soft base shows up next to strong
+   offence rather than being buried under it. */
+.elig-clickable { cursor: pointer; }
+.elig-clickable:hover > td { background: var(--card2); }
+.elig-caret {
+  display: inline-block; margin-left: 6px; color: var(--muted);
+  font-size: .7rem; transition: transform .15s;
+}
+.elig-open .elig-caret { transform: rotate(90deg); }
+
+.bl-panel {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; margin-bottom: 6px;
+}
+.bl-head {
+  font-size: .8rem; font-weight: 800; margin-bottom: 8px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+.bl-row {
+  display: grid; grid-template-columns: 52px 46px 52px 1fr;
+  gap: 8px; align-items: center;
+  padding: 4px 0; font-size: .8rem;
+}
+/* Each figure gets its own chip so the eye can run down a column — the game
+   shows them the same way. */
+.bl-troph, .bl-stars, .bl-dest {
+  background: var(--card2); border-radius: 6px;
+  padding: 3px 6px; text-align: center; font-weight: 700;
+}
+.bl-troph.up { color: var(--green); }
+.bl-stars { letter-spacing: 1px; color: var(--muted); }
+.bl-stars.full { color: var(--gold); }
+.bl-when { font-size: .74rem; }
+
+@media (max-width: 700px) {
+  /* Two columns of four figures will not fit a phone, so the sides stack. */
+  .bl-panel { grid-template-columns: 1fr; gap: 14px; }
+}

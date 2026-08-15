@@ -43,8 +43,10 @@ Then open http://localhost:8642.
    roster, scores every clan's strength (avg Town Hall dominant, plus clan level, win rate,
    streak), ranks the group, and runs a 6,000-season Monte-Carlo simulation for your
    **promotion probability** (top 2 promote), win-outright chance, and demotion risk.
-   Then it auto-assigns your players across the 7 war days — strongest attackers against the
-   toughest opponents — with per-day manual overrides. Season state persists in `localStorage`.
+   Then it auto-assigns your players across the 7 war days — best attackers against the
+   toughest opponents — with per-day manual overrides. Your own players are ranked on
+   **ranked form** (see below), never on Town Hall or hero levels, so day rosters only appear
+   once the form analysis has been run. Season state persists in `localStorage`.
 
 ## Live clan data (optional)
 
