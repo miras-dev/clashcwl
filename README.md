@@ -127,6 +127,32 @@ skill, not the trophies their league happens to yield.
 Tier order comes from the game's own `GET /leaguetiers` — 37 rungs from Unranked
 to Legend I, where `id - 105000000` is the ladder position.
 
+### Collecting a longer window
+
+The live battle log is a rolling ~50-battle buffer. For the most active players
+that is **under four days** — one member's window measured 1.9 days — so the
+people you most want to judge are the ones you can see least of.
+
+`scripts/collect-battles.mjs` fixes that by accumulating. It reads every member's
+battle log, deduplicates on `(playerTag, battleTimestamp)`, and keeps the union in
+`data/battles-<CLANTAG>.json`:
+
+```bash
+COC_API_KEY=... node scripts/collect-battles.mjs '#2L92V9CYP'
+```
+
+Because the endpoint returns discrete battles with timestamps, nothing is
+reconstructed and re-running is idempotent — a second run the same day adds zero
+rows. Missing a day costs nothing while the gap stays shorter than the buffer.
+
+`.github/workflows/collect-battles.yml` runs it daily at 04:30 UTC (just before
+the 05:00 ranked reset) and commits the result. Set the `COC_API_KEY` secret and a
+`CLAN_TAGS` repository variable to enable it. The eligibility view prefers stored
+history wherever it covers more than the live buffer, and says which it used.
+
+Storage is about 73 bytes per battle — roughly 320 KB for a 40-member clan over a
+fortnight. Rows older than `RETENTION_DAYS` (45) are pruned.
+
 Two cases are handled explicitly rather than silently. A player with no readable
 battle log is unrated. A player whose log shows zero attacks scores 0 — and sorts
 *below* the unrated ones, because proven inactivity is worse evidence than no

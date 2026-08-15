@@ -1,0 +1,70 @@
+name: Collect Ranked Battles
+
+# The game only keeps a rolling ~50-battle window per player — under four days
+# for an active Legend account. Running daily and committing the union turns
+# that into however long this has been running, which is what makes ranked form
+# a fair basis for picking a CWL roster.
+#
+# Daily at 04:30 UTC, just before the 05:00 ranked reset, so a day's attacks are
+# captured while they are still complete. The buffer holds several days, so a
+# missed run loses nothing as long as the gap stays under ~3 days.
+on:
+  schedule:
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+    inputs:
+      clanTags:
+        description: "Space-separated clan tags (defaults to the CLAN_TAGS variable)"
+        required: false
+
+permissions:
+  contents: write
+
+# Never let two runs commit at once; the second would hit a stale index.
+concurrency:
+  group: collect-battles
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Collect
+        env:
+          # The key is IP-locked to the RoyaleAPI proxy, not to the runner, so a
+          # GitHub-hosted runner with no stable egress IP still works.
+          COC_API_KEY: ${{ secrets.COC_API_KEY }}
+          TAGS: ${{ inputs.clanTags || vars.CLAN_TAGS }}
+        run: |
+          if [ -z "$COC_API_KEY" ]; then
+            echo "::error::COC_API_KEY secret is not set"; exit 1
+          fi
+          if [ -z "$TAGS" ]; then
+            echo "::error::No clan tags. Set a CLAN_TAGS repository variable (e.g. '#2L92V9CYP')."; exit 1
+          fi
+          for tag in $TAGS; do
+            echo "::group::$tag"
+            # One clan failing must not cost the others their daily collection.
+            node scripts/collect-battles.mjs "$tag" || echo "::warning::collection failed for $tag"
+            echo "::endgroup::"
+          done
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          # Nothing new is the normal outcome of a re-run, not a failure.
+          if git diff --cached --quiet; then
+            echo "No new battles."; exit 0
+          fi
+          git commit -m "Collect ranked battles $(date -u +%Y-%m-%d)"
+          # The deploy workflow runs on push to main and will publish data/ with
+          # the site, so the page picks this up automatically.
+          git push

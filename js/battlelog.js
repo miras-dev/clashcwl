@@ -88,6 +88,38 @@ function extractRankedBattles(battlelog) {
     .sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
 }
 
+/* Stored history (data/battles-<clan>.json, written by scripts/collect-battles.mjs)
+ * back into the API's shape, so everything downstream stays unaware of where the
+ * battles came from.
+ *
+ * The stored rows are deliberately terse — the file is committed and grows every
+ * day — so this expands t/d/k/a/s/p back to the full field names. Opponent
+ * details are not stored: they are not scored, and they would triple the file.
+ */
+function fromStoredRows(rows) {
+  return {
+    items: (rows || []).map((r) => ({
+      battleType: r.k === "l" ? "legend" : "ranked",
+      attack: !!r.a,
+      stars: r.s,
+      destructionPercentage: r.p,
+      battleTimestamp: r.d,
+    })),
+  };
+}
+
+/* Group stored rows by player tag, ready for summariseRanked. */
+function groupStoredByPlayer(stored) {
+  const byTag = new Map();
+  for (const r of (stored && stored.battles) || []) {
+    if (!byTag.has(r.t)) byTag.set(r.t, []);
+    byTag.get(r.t).push(r);
+  }
+  const out = new Map();
+  for (const [tag, rows] of byTag) out.set(tag, fromStoredRows(rows));
+  return out;
+}
+
 function mean(values) {
   if (!values.length) return null;
   return values.reduce((a, b) => a + b, 0) / values.length;
@@ -137,7 +169,8 @@ function summariseRanked(battlelog) {
   };
 }
 
-const api = { calculateTrophies, parseBattleTime, extractRankedBattles, summariseRanked };
+const api = { calculateTrophies, parseBattleTime, extractRankedBattles, summariseRanked,
+              fromStoredRows, groupStoredByPlayer };
 
 root.BattleLog = api;
 if (typeof module !== "undefined" && module.exports) module.exports = api;

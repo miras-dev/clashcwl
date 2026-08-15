@@ -580,6 +580,20 @@ function renderEligibility() {
       : "");
   }).join("");
 
+  // Which data the ranking is standing on. Without this the window column looks
+  // arbitrary — "1.9d" and "12.4d" side by side with no explanation of why.
+  const sourceNote = eligibility.usedStored
+    ? `<p class="muted small" style="margin-top:10px">
+         Using collected history for ${eligibility.usedStored} player${eligibility.usedStored === 1 ? "" : "s"}
+         — a daily job accumulates ranked battles beyond the ~50-battle window the game
+         keeps, so form gets more reliable the longer it runs${eligibility.storedUpdatedAt
+           ? ` (last collected ${escG(new Date(eligibility.storedUpdatedAt).toLocaleDateString())})` : ""}.</p>`
+    : `<p class="muted small" style="margin-top:10px">
+         No collected history for this clan yet, so this is the live ~50-battle window only
+         — a few days for active players. Run
+         <code>node scripts/collect-battles.mjs '${escG(normTag(state.myTag))}'</code> daily
+         to build a longer, steadier picture.</p>`;
+
   // Production runs on Lambda behind API Gateway, which hangs up at 29s, so a
   // big clan can come back part-fetched. Saying so matters: those players are
   // unmeasured, not inactive, and the difference decides whether you bench them.
@@ -615,7 +629,22 @@ function renderEligibility() {
     <table style="margin-top:10px"><thead><tr>
       <th>#</th><th>Player</th><th>TH</th><th>Score</th><th>Form</th>
       <th>Ranked attacks vs league par</th><th>Evidence</th><th>Window</th>
-    </tr></thead><tbody>${rows}</tbody></table>${truncWarn}${warn}`;
+    </tr></thead><tbody>${rows}</tbody></table>${sourceNote}${truncWarn}${warn}`;
+}
+
+/* Accumulated battle history for a clan, or null.
+ *
+ * Written daily by scripts/collect-battles.mjs and committed, so it ships as a
+ * static file alongside the pages. Absent for any clan nobody collects — that is
+ * the normal case, not an error, so a 404 returns null silently and the page
+ * falls back to the live buffer. */
+async function fetchStoredHistory(tag) {
+  try {
+    const r = await fetch(`data/battles-${encodeURIComponent(tag.toUpperCase())}.json`, { cache: "no-cache" });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return Array.isArray(j.battles) ? j : null;
+  } catch { return null; }
 }
 
 async function loadEligibility() {
@@ -636,14 +665,37 @@ async function loadEligibility() {
     const deep = await apiGet("clan-deep", tag);
     const logs = await apiGet("clan-battlelogs", tag);
 
-    eligibility = Eligibility.rankClan(deep.players || [], logs.members || [], {
+    // Accumulated history, if a daily collection run has been committed for this
+    // clan. The live call above only ever sees a rolling ~50-battle buffer —
+    // under four days for the most active players, which is precisely who we
+    // most need to judge. Stored history is preferred wherever it is longer.
+    const stored = await fetchStoredHistory(tag);
+    const storedByTag = stored ? BattleLog.groupStoredByPlayer(stored) : null;
+    let usedStored = 0;
+
+    const merged = (logs.members || []).map((m) => {
+      const hist = storedByTag && storedByTag.get(m.tag);
+      if (!hist) return m;
+      // Prefer whichever covers more ground. Stored is normally a superset, but
+      // on the day of the first run they are the same data, and a member who
+      // joined since the last run has only the live buffer.
+      const liveCount = ((m.battlelog && m.battlelog.items) || []).length;
+      if (hist.items.length <= liveCount) return m;
+      usedStored++;
+      return { ...m, battlelog: hist };
+    });
+
+    eligibility = Eligibility.rankClan(deep.players || [], merged, {
       warSize: Number(state.warSize) || 15,
     });
     // Set by the Lambda when it hit its wall-clock budget mid-clan.
     eligibility.truncated = !!logs.truncated;
+    eligibility.storedUpdatedAt = stored ? stored.updatedAt : null;
+    eligibility.usedStored = usedStored;
 
     const withForm = eligibility.members.filter((m) => m.formScore != null).length;
-    out.textContent = `Ranked ${eligibility.members.length} players · ${withForm} with ranked form`;
+    out.textContent = `Ranked ${eligibility.members.length} players · ${withForm} with ranked form`
+      + (usedStored ? ` · ${usedStored} using collected history` : "");
     out.style.color = "var(--green)";
     renderEligibility();
   } catch (e) {

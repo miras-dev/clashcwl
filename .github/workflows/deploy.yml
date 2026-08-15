@@ -28,6 +28,9 @@ jobs:
           cp *.html _site/
           cp -r css js assets _site/
           cp robots.txt sitemap.xml _site/
+          # Accumulated ranked-battle history, written by the collect-battles
+          # workflow. Absent until that has run at least once.
+          [ -d data ] && cp -r data _site/ || true
           # Legend Bases is parked until it has a data source behind it.
           rm -f _site/bases.html
 

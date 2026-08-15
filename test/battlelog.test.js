@@ -137,5 +137,62 @@ console.log("server-side trim");
   });
 }
 
+console.log("stored history round-trip");
+{
+  // scripts/collect-battles.mjs writes terse rows; fromStoredRows expands them
+  // back so summariseRanked cannot tell stored history from a live API response.
+  // If the two ever disagree, a clan with collected history would score
+  // differently from one without — the bug this test exists to catch.
+  const { fromStoredRows, groupStoredByPlayer } = require("../js/battlelog.js");
+
+  const live = fixture("battlelog-ranked.json");
+  const asRows = live.items
+    .filter((b) => b.battleType === "ranked" || b.battleType === "legend")
+    .map((b) => ({
+      t: "#P9UQVUJJ0",
+      d: b.battleTimestamp,
+      k: b.battleType === "legend" ? "l" : "r",
+      a: b.attack ? 1 : 0,
+      s: b.stars,
+      p: b.destructionPercentage,
+    }));
+
+  test("stored rows summarise identically to the live response", () => {
+    const fromLive = summariseRanked(live);
+    const fromStored = summariseRanked(fromStoredRows(asRows));
+    assert.strictEqual(fromStored.netTrophies, fromLive.netTrophies);
+    assert.strictEqual(fromStored.attackCount, fromLive.attackCount);
+    assert.strictEqual(fromStored.defenseCount, fromLive.defenseCount);
+    assert.deepStrictEqual(fromStored.battles.map((b) => b.trophyChange),
+      fromLive.battles.map((b) => b.trophyChange));
+  });
+
+  test("legend rows survive the round-trip as legend", () => {
+    const s = summariseRanked(fromStoredRows([
+      { t: "#X", d: "20260815T120000.000Z", k: "l", a: 0, s: 0, p: 0 },
+    ]));
+    // A 0-star defense costs nothing in Legend but gives the defender the full
+    // pool in Ranked — so a mislabelled type would show up as +40 here.
+    assert.strictEqual(s.battles[0].trophyChange, 0);
+    assert.strictEqual(s.battles[0].isLegendLeague, true);
+  });
+
+  test("grouping splits rows by player tag", () => {
+    const g = groupStoredByPlayer({ battles: [
+      { t: "#A", d: "20260815T120000.000Z", k: "r", a: 1, s: 3, p: 100 },
+      { t: "#B", d: "20260815T130000.000Z", k: "r", a: 1, s: 1, p: 40 },
+      { t: "#A", d: "20260815T140000.000Z", k: "r", a: 1, s: 2, p: 80 },
+    ]});
+    assert.strictEqual(g.get("#A").items.length, 2);
+    assert.strictEqual(g.get("#B").items.length, 1);
+  });
+
+  test("missing or empty history is inert", () => {
+    assert.deepStrictEqual(fromStoredRows(null), { items: [] });
+    assert.strictEqual(groupStoredByPlayer(null).size, 0);
+    assert.strictEqual(groupStoredByPlayer({ battles: [] }).size, 0);
+  });
+}
+
 console.log(failures ? `\n${failures} test(s) failed` : "\nAll tests passed");
 process.exit(failures ? 1 : 0);
