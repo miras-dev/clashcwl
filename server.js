@@ -318,6 +318,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === "/api/clan" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}`;
       // Undocumented but live on the official API — see js/battlelog.js.
       else if (url.pathname === "/api/battlelog" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}/battlelog`;
+      else if (url.pathname === "/api/leaguehistory" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}/leaguehistory`;
       else if (url.pathname === "/api/clan-members" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/members`;
       else if (url.pathname === "/api/player" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}`;
       else if (url.pathname === "/api/warlog" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/warlog?limit=20`;

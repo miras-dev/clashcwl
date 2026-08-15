@@ -418,6 +418,9 @@ export const handler = async (event) => {
     else if (path === "/player" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}`;
     // Undocumented but live on the official API — see js/battlelog.js.
     else if (path === "/battlelog" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}/battlelog`;
+    // Ranked season history, fetched per-player when a row is expanded — see
+    // js/leaguehistory.js. Must stay in step with server.js.
+    else if (path === "/leaguehistory" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}/leaguehistory`;
     else if (path === "/warlog" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/warlog?limit=20`;
     else if (path === "/cwl-group" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/currentwar/leaguegroup`;
 

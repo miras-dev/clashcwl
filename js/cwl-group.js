@@ -25,6 +25,26 @@ function normTag(t) {
   return "#" + String(t || "").trim().toUpperCase().replace(/^#/, "").replace(/[^0-9A-Z]/g, "");
 }
 
+/* A player's Ranked tier as icon + name.
+ *
+ * The badge carries the rank at a glance where the bare string did not — the
+ * ladder is 37 rungs deep and "Electro League 33" versus "Legend III" means
+ * nothing to anyone who has not memorised the order.
+ *
+ * An unknown tier renders as an em dash rather than a broken image: clan-deep
+ * returns null for players the API has no league for, and that is a real state,
+ * not an error. Icons are remote, so they get lazy loading and a transparent
+ * failure — a missing badge should cost the name next to it nothing. */
+function leagueBadge(tier, { compact = false } = {}) {
+  const t = root.LeagueTiers ? root.LeagueTiers.resolve(tier) : null;
+  if (!t) return `<span class="muted">—</span>`;
+  const size = compact ? 16 : 20;
+  return `<span class="league-badge" title="${escG(t.name)} — rank ${t.rank} of 36">
+    <img src="${escG(t.iconUrls.small)}" alt="" width="${size}" height="${size}"
+         loading="lazy" onerror="this.style.display='none'">
+    <span>${escG(t.name)}</span></span>`;
+}
+
 /* ---------------- data source ---------------- */
 // The proxy is a separate origin in production (API Gateway → Lambda), so these
 // calls are absolute. On localhost `node server.js` serves both the pages and
@@ -315,7 +335,7 @@ function renderClanDetail(c, ws) {
         <td><span class="player-chip"><span class="th">TH${p.thLevel}</span></span></td>
         <td><strong style="color:var(--gold)">${(p.warStars || 0).toLocaleString()}</strong></td>
         <td class="muted small">${p.heroSum ? "Σ " + p.heroSum : "—"}</td>
-        <td class="muted small">${escG(p.leagueTier || "—")}</td>
+        <td class="small">${leagueBadge(p.leagueTier)}</td>
         <td>${p.warPreference === "in"
             ? `<span class="pill" style="color:var(--green);border-color:var(--green)">IN</span>`
             : p.warPreference === "out"
@@ -595,6 +615,78 @@ function battleLogPanel(summary) {
   </div>`;
 }
 
+/* Season-by-season attack usage — the evidence behind the confidence column.
+ *
+ * The battle log above shows current form on a ~50-battle buffer. This shows
+ * whether that form is backed by months of showing up, which is the question CWL
+ * actually turns on: a missed hit costs up to three stars and cannot be made up.
+ *
+ * Only usage is charted. Trophies and placement are shown per row but explicitly
+ * NOT compared across seasons where the tier differs, and stars are absent
+ * entirely because the API returns 0 for them — see js/leaguehistory.js. Saying
+ * so in the panel is deliberate: a blank column invites the reader to assume we
+ * measured something and found nothing. */
+function seasonPanel(seasons) {
+  if (!seasons || !seasons.hasData) {
+    return `<div class="season-panel">
+      <div class="bl-head">Season reliability</div>
+      <p class="muted small" style="margin:0">No completed ranked seasons on record —
+        either a new account, or the API has no league history for them. Confidence
+        rests on the battle log alone.</p>
+    </div>`;
+  }
+
+  const pct = Math.round(seasons.usage * 100);
+  // The verdict colour has to match what the number means for selection, not
+  // just how big it is: 85% is the line where missed hits start to matter.
+  const tone = seasons.reliable == null ? "var(--muted)"
+    : seasons.reliable ? "var(--green)" : "var(--red)";
+
+  const rows = seasons.seasons.slice().reverse().map((s) => {
+    const u = s.usage == null ? 0 : Math.round(s.usage * 100);
+    const when = s.date
+      ? s.date.toLocaleDateString(undefined, { month: "short", year: "numeric" })
+      : "—";
+    const full = s.usage === 1;
+    return `<div class="season-row">
+      <span class="season-when muted">${escG(when)}</span>
+      <span class="season-bar" title="${s.attacksUsed} of ${s.attacksAvailable} attacks used">
+        <span class="season-fill${full ? " full" : ""}" style="width:${u}%"></span>
+      </span>
+      <span class="season-count${full ? " full" : ""}">${s.attacksUsed}/${s.attacksAvailable}</span>
+      <span class="season-tier muted small">${s.tier ? escG(s.tier.name) : "—"}</span>
+      <span class="season-troph muted small">${s.trophies ? s.trophies.toLocaleString() : "—"}${
+        s.placement ? ` · #${s.placement}` : ""}</span>
+    </div>`;
+  }).join("");
+
+  // What the headline number rests on, in one line, so the percentage is never
+  // read as a bare score.
+  const verdict = seasons.reliable == null
+    ? `Only ${seasons.seasonCount} season${seasons.seasonCount === 1 ? "" : "s"} on record — too few to call either way.`
+    : seasons.reliable
+      ? `Used ${seasons.attacksUsed} of ${seasons.attacksAvailable} available attacks across ${seasons.seasonCount} seasons${
+          seasons.perfectSeasons ? `, ${seasons.perfectSeasons} of them perfect` : ""}. Unlikely to miss CWL hits.`
+      : `Used only ${seasons.attacksUsed} of ${seasons.attacksAvailable} available attacks across ${seasons.seasonCount} seasons. Has a record of leaving attacks unused.`;
+
+  return `<div class="season-panel">
+    <div class="bl-head">Season reliability
+      <span class="muted small" style="font-weight:600">— attacks used, not how well</span>
+    </div>
+    <div class="season-headline">
+      <strong style="color:${tone}">${pct}%</strong>
+      <span class="muted small">${escG(verdict)}</span>
+    </div>
+    <div class="season-rows">${rows}</div>
+    <p class="muted small season-note">
+      Ranked seasons only, most recent first. Trophies and placement are shown for
+      context but compare only within the same tier — the API publishes no trophy
+      cutoffs, so a total from one league says nothing against another. Star counts
+      are omitted because the endpoint returns zero for them on every account, so
+      there is no historical triple rate to show.</p>
+  </div>`;
+}
+
 function renderEligibility() {
   const show = state.roster.length > 0;
   $g("eligibilitySection").style.display = show ? "block" : "none";
@@ -636,7 +728,8 @@ function renderEligibility() {
       <td><strong>${escG(m.name)}</strong>
         ${inRoster ? `<span class="pill" style="color:var(--green); border-color:var(--green)">P${m.band}</span>` : ""}
         ${s.hasData ? `<span class="elig-caret" aria-hidden="true">▸</span>` : ""}
-        <div class="muted small">${escG(m.tag)}${m.leagueTier ? " · " + escG(m.leagueTier) : ""}</div></td>
+        <div class="muted small">${escG(m.tag)}${m.leagueTier
+          ? ` · ${leagueBadge(m.leagueTier, { compact: true })}` : ""}</div></td>
       <td><span class="player-chip"><span class="th">TH${m.thLevel || "?"}</span></span></td>
       <td>${scoreCell}</td>
       <td>${formCell}</td>
@@ -655,7 +748,8 @@ function renderEligibility() {
     </tr>
     ${s.hasData ? `<tr class="elig-battles" data-for="${escG(m.tag)}" hidden>
       <td></td>
-      <td colspan="7" style="padding-top:0; border-top:none">${battleLogPanel(s)}</td>
+      <td colspan="7" style="padding-top:0; border-top:none">${battleLogPanel(s)}
+        <div class="season-mount" data-for="${escG(m.tag)}"></div></td>
     </tr>` : ""}`;
   }).join("");
 
@@ -713,8 +807,48 @@ function renderEligibility() {
       if (!panel) return;
       panel.hidden = !panel.hidden;
       tr.classList.toggle("elig-open", !panel.hidden);
+      // Season history is one API call per player, so it is fetched the first
+      // time someone actually looks rather than for all 50 members on load.
+      if (!panel.hidden) loadSeasons(tag);
     });
   });
+}
+
+/* Season history for one player, fetched on first expand.
+ *
+ * Loading this for a whole clan would be a third fan-out — one call per member
+ * on top of clan-deep and clan-battlelogs — to answer a question most players
+ * are never asked. Expanding a row is the moment it becomes worth knowing, so
+ * that is when it is fetched, and the result is cached for the session. */
+const seasonCache = new Map();
+
+async function loadSeasons(tag) {
+  const mount = $g("eligibilityList")
+    .querySelector(`.season-mount[data-for="${CSS.escape(tag)}"]`);
+  if (!mount || mount.dataset.loaded) return;
+  mount.dataset.loaded = "1";
+
+  const render = (summary) => { mount.innerHTML = seasonPanel(summary); };
+
+  if (seasonCache.has(tag)) { render(seasonCache.get(tag)); return; }
+
+  mount.innerHTML = `<div class="season-panel"><div class="bl-head">Season reliability</div>
+    <p class="muted small" style="margin:0">Loading season history…</p></div>`;
+
+  try {
+    const raw = await apiGet("leaguehistory", tag.replace(/^#/, ""));
+    const summary = LeagueHistory.summariseSeasons(raw);
+    seasonCache.set(tag, summary);
+    render(summary);
+  } catch (e) {
+    // A failure here costs the reliability panel, nothing else — the score and
+    // battle log above it stand on their own, so it says so rather than
+    // implying the player has no history.
+    mount.innerHTML = `<div class="season-panel"><div class="bl-head">Season reliability</div>
+      <p class="muted small" style="margin:0">Could not load season history — ${escG(e.message)}.
+      The form above is unaffected.</p></div>`;
+    delete mount.dataset.loaded;   // let a retry happen on the next expand
+  }
 }
 
 /* Definitions for every column, with the actual arithmetic.
@@ -887,6 +1021,9 @@ async function loadEligibility() {
       return { ...m, battlelog: hist };
     });
 
+    // Season history is deliberately NOT fetched here. It is one call per member
+    // on top of the two fan-outs above, and most players are never expanded — so
+    // it is loaded per-player on click instead. See loadSeasons().
     eligibility = Eligibility.rankClan(deep.players || [], merged, {
       warSize: Number(state.warSize) || 15,
     });

@@ -58,44 +58,17 @@ const MAX_ATTACK_GAIN = 40;
  * ordering from GET /leaguetiers — 37 rungs, Unranked (0) to Legend I (36) —
  * and the id encodes the rank, so `id - 105000000` is the ladder position.
  */
-const LEAGUE_TIER_BASE_ID = 105000000;
 const MAX_TIER_RANK = 36;                 // Legend I
 
-/* Name → rank, for the clan-deep rows that carry `leagueTier` as a string. */
-const TIER_RANK_BY_NAME = (() => {
-  const names = [
-    "Unranked",
-    "Skeleton League 1", "Skeleton League 2", "Skeleton League 3",
-    "Barbarian League 4", "Barbarian League 5", "Barbarian League 6",
-    "Archer League 7", "Archer League 8", "Archer League 9",
-    "Wizard League 10", "Wizard League 11", "Wizard League 12",
-    "Valkyrie League 13", "Valkyrie League 14", "Valkyrie League 15",
-    "Witch League 16", "Witch League 17", "Witch League 18",
-    "Golem League 19", "Golem League 20", "Golem League 21",
-    "P.E.K.K.A League 22", "P.E.K.K.A League 23", "P.E.K.K.A League 24",
-    "Titan League 25", "Titan League 26", "Titan League 27",
-    "Dragon League 28", "Dragon League 29", "Dragon League 30",
-    "Electro League 31", "Electro League 32", "Electro League 33",
-    "Legend III", "Legend II", "Legend I",
-  ];
-  const map = new Map();
-  names.forEach((n, i) => map.set(n.toLowerCase(), i));
-  return map;
-})();
+/* The ladder itself lives in js/leaguetiers.js, generated from the game's own
+   GET /leaguetiers — it owns the names, the ids and the badge icons, so this
+   file does not carry a second copy that could drift from it. */
+const LeagueTiers = root.LeagueTiers || (typeof require !== "undefined" ? require("./leaguetiers.js") : null);
 
-/* Ladder position 0-36, or null when the tier is unknown. Accepts either the
-   numeric id from the API or the tier name. */
+/* Ladder position 0-36, or null when the tier is unknown. Accepts the numeric
+   id, the tier name, a bare rank, or the API's `{ id, name }` object. */
 function tierRank(leagueTier) {
-  if (leagueTier == null) return null;
-  if (typeof leagueTier === "object") {
-    if (typeof leagueTier.id === "number") return leagueTier.id - LEAGUE_TIER_BASE_ID;
-    leagueTier = leagueTier.name;
-  }
-  if (typeof leagueTier === "number") {
-    return leagueTier > LEAGUE_TIER_BASE_ID ? leagueTier - LEAGUE_TIER_BASE_ID : leagueTier;
-  }
-  const rank = TIER_RANK_BY_NAME.get(String(leagueTier).toLowerCase().trim());
-  return rank == null ? null : rank;
+  return LeagueTiers.rankOf(leagueTier);
 }
 
 /* What a competent player's average attack is worth in this tier, in trophies.
@@ -178,6 +151,19 @@ function formScore(summary, leagueTier) {
  */
 const CONFIDENT_ATTACKS = 10;
 
+/* Season history deliberately does NOT feed this.
+ *
+ * Reliability (attacks used per season, see js/leaguehistory.js) is one API call
+ * per player, so it is fetched lazily when a row is expanded — long after the
+ * ranking has been computed. Wiring it in here would mean either fetching it for
+ * every member on load, which is a third clan-wide fan-out to answer a question
+ * most players are never asked, or having confidence mean different things
+ * depending on which rows happen to have been clicked.
+ *
+ * So confidence stays a statement about the battle log alone, and reliability is
+ * presented beside it as separate evidence for the human making the call. It
+ * would not have belonged in `formScore` in any case: reliability is
+ * accumulation, and this model scores current form. */
 function formConfidence(summary) {
   if (!summary || !summary.hasData) return 0;
 

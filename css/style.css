@@ -223,6 +223,15 @@ label { display: block; font-size: .85rem; color: var(--muted); margin: 12px 0 6
 .pill.common { color: var(--accent); border-color: var(--accent); }
 .pill.gold { color: var(--gold); border-color: var(--gold); }
 
+/* Ranked league badge — icon + tier name. The icon sits on the text baseline
+   rather than above it so a badge inside a line of muted metadata does not
+   push the row taller than its neighbours. */
+.league-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  vertical-align: middle; white-space: nowrap;
+}
+.league-badge img { flex: none; object-fit: contain; }
+
 /* ---------- tables ---------- */
 /* Wide tables scroll inside their own card instead of widening the page.
    Cards get the scroll container so the layout never breaks on a phone. */
@@ -576,4 +585,47 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
 @media (max-width: 700px) {
   /* Two columns of four figures will not fit a phone, so the sides stack. */
   .bl-panel { grid-template-columns: 1fr; gap: 14px; }
+}
+
+/* ---------- season reliability ---------- */
+/* Sits under the battle log in an expanded player row: the log is this week,
+   this is the months behind it. */
+.season-panel {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; margin-bottom: 6px;
+}
+.season-headline {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 10px 0 12px; flex-wrap: wrap;
+}
+.season-headline strong { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.season-row {
+  display: grid; grid-template-columns: 84px 1fr 58px 116px 104px;
+  gap: 10px; align-items: center;
+  padding: 5px 0; font-size: .8rem;
+}
+.season-when { font-size: .74rem; }
+/* The bar is the point of the row — usage reads as a shape before it reads as a
+   number, which is what makes a patchy record obvious at a glance. */
+.season-bar {
+  background: var(--card2); border-radius: 999px;
+  height: 8px; overflow: hidden;
+}
+.season-fill {
+  display: block; height: 100%; border-radius: 999px;
+  background: var(--gold);
+}
+.season-fill.full { background: var(--green); }
+.season-count {
+  font-weight: 700; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.season-count.full { color: var(--green); }
+.season-tier, .season-troph { text-align: right; }
+.season-note { margin: 10px 0 0; line-height: 1.5; }
+
+@media (max-width: 700px) {
+  /* Tier and trophies are context, not the signal — drop them before the bar. */
+  .season-row { grid-template-columns: 70px 1fr 52px; }
+  .season-tier, .season-troph { display: none; }
 }

@@ -202,6 +202,53 @@ form in the clan.
 node test/eligibility.test.js
 ```
 
+### League tiers
+
+`data/leaguetiers.json` is the verbatim `GET /leaguetiers` response — 37 rungs,
+Unranked (`105000000`) to Legend I (`105000036`) — and `js/leaguetiers.js` inlines
+it so the badges render without a round-trip. The id encodes the ladder position,
+so `id - 105000000` is the rank, and that makes cross-player league comparison
+ordinal and exact.
+
+What the endpoint does **not** give is trophy cutoffs per tier. Trophies and
+placement are therefore only comparable between players whose tier matches: rank on
+the tier first, and use trophies to break ties inside a single tier.
+
+To refresh after a game update, re-fetch the endpoint into `data/leaguetiers.json`
+and regenerate the module — the tests fail until the two agree.
+
+```bash
+node test/leaguetiers.test.js
+```
+
+### Season reliability
+
+`GET /players/{tag}/leaguehistory` returns one row per completed ranked season.
+Only **attack usage** is read from it — `(attackWins + attackLosses) / maxBattles`
+over the last six seasons — which answers a question the battle log structurally
+cannot: has this player been reliable for months, or did they just start this week?
+The log is a rolling ~50-battle buffer, under four days for the most active players.
+
+The rest of the payload is deliberately ignored:
+
+| Field | Why it is not used |
+| --- | --- |
+| `attackStars` | `0` on every season of every account observed — a dead field, not a real zero. There is no historical triple rate to be had. |
+| `defenseStars` | A season aggregate, not a per-defence record, so it cannot become a three-starred rate. The battle log measures that properly. |
+| `leagueTrophies`, `placement` | No trophy cutoffs are published per tier, so these compare only within a matching `leagueTierId`. |
+
+Reliability does **not** feed the score or the confidence column. It is fetched
+lazily — one call per player, the first time a row is expanded — so it is not
+available when the clan is ranked, and wiring it into confidence would make that
+column mean different things depending on which rows had been clicked. It is
+presented beside the battle log as separate evidence for the person making the
+call. It would not belong in `formScore` regardless: reliability is accumulation,
+and that model scores current form.
+
+```bash
+node test/leaguehistory.test.js
+```
+
 ## Assets & ID mapping
 
 `assets/` holds 168 entity icons (heroes, equipment, troops, spells, sieges, pets,
