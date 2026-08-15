@@ -204,7 +204,7 @@ function formConfidence(summary) {
  * Written as sentences rather than tags because the interesting cases are the
  * ones needing a "because": a low score that is actually fine, or a high one
  * resting on three attacks. */
-function explain({ player, summary, rank, par, score, form, confidence, rated }) {
+function explain({ player, summary, rank, par, score, form, confidence, rated, band, tripledAgainst }) {
   const league = player.leagueTier || "an unknown league";
   const atk = summary.attackCount;
   const avg = summary.avgAttackGain;
@@ -267,6 +267,29 @@ function explain({ player, summary, rank, par, score, form, confidence, rated })
     parts.push(`${Math.round(summary.tripleRate * 100)}% of their attacks were triples`);
   }
 
+  // Why they sit in the band they do. Band 2 is the defensive core, so it is
+  // the one place where the base matters more than the attacks.
+  if (band === 1) {
+    parts.push(`Reaching Legend I takes sustained form under the game's harshest modifiers, `
+      + `which is a stronger claim on a slot than any single week of attacks`);
+  } else if (band === 2) {
+    parts.push(`A maxed TH18 in ${league}, so they are part of the defensive core — the point `
+      + `is a base the opposition cannot casually three-star`);
+  }
+
+  // Measured defensive record, where there is enough of it. This beats hero
+  // levels as a signal: two players at a full hero roster measured 6% and 75%
+  // three-starred, because layout decides it and only the outcome shows that.
+  if (tripledAgainst != null) {
+    const pct = Math.round(tripledAgainst * 100);
+    if (tripledAgainst <= 0.3) {
+      parts.push(`Their base holds up too — three-starred only ${pct}% of the time in ranked defences`);
+    } else if (tripledAgainst >= 0.7) {
+      parts.push(`Their base is soft though — three-starred ${pct}% of the time in ranked defences, `
+        + `so they cost stars on defence even when they earn them on offence`);
+    }
+  }
+
   // Volume decides how much the above is worth, so it comes last and drives the
   // verdict more than the averages do.
   let verdict;
@@ -293,6 +316,68 @@ function explain({ player, summary, rank, par, score, form, confidence, rated })
   return { verdict, rationale: parts.join(". ") + "." + closing };
 }
 
+/* ---------------- selection priorities ----------------
+ *
+ * Form alone answers "who attacks well". It does not answer "who should fill the
+ * roster", because CWL is also won by not being three-starred, and a bench of
+ * excellent attackers on soft bases loses. Players are therefore bucketed into
+ * priority bands and the roster is filled band by band, best form first inside
+ * each:
+ *
+ *   1  Legend I — they got there by sustaining form under the harshest
+ *      modifiers in the game, which is a stronger claim than any single week
+ *      of attacks.
+ *   2  Maxed TH18 in Legend II or III — the defensive core. The point is not
+ *      their offence; it is that their bases are hard to three-star.
+ *   3  Strong attackers in Legend II or III who are not maxed — form carries
+ *      them even where the base does not.
+ *   4  Everyone else, by form.
+ *
+ * The API exposes NO defensive building levels — no walls, no defence levels,
+ * nothing that says "supercharged" — so band 2 uses hero sum as the maxing
+ * proxy and, where we have enough defences on record, how often the player is
+ * actually three-starred. The second signal is the better one: two players at
+ * heroSum 480 measured 6% and 75% three-starred, because base layout matters
+ * more than max level and only the outcome reveals it.
+ */
+const MAXED_TH = 18;
+const MAXED_HERO_SUM = 470;      // ~480 is a full TH18 hero roster; allow one mid-upgrade
+const LEGEND_III = 34;
+const LEGEND_I = 36;
+
+/* A maxed base only helps if its owner turns up. Without this floor, band 2
+   fills on hero levels alone: four maxed players scoring 46-53 took slots from
+   attackers scoring 93-96 who simply had not maxed their heroes. Priority
+   decides the order, not whether someone has stopped playing. */
+const BAND_MIN_SCORE = 60;
+
+/* How often this player gets three-starred in Ranked, or null when too few
+   defences are on record to say. Lower is better. */
+function tripledAgainstRate(summary) {
+  if (!summary || !summary.hasData) return null;
+  const defs = summary.battles.filter((b) => !b.isAttack);
+  if (defs.length < 6) return null;
+  return defs.filter((b) => b.stars === 3).length / defs.length;
+}
+
+function priorityBand(player, summary) {
+  const rank = tierRank(player.leagueTier);
+  const maxed = (player.thLevel || 0) >= MAXED_TH
+    && (Number(player.heroSum) || 0) >= MAXED_HERO_SUM;
+
+  if (rank >= LEGEND_I) return 1;
+  if (maxed && rank >= LEGEND_III) return 2;
+  if (rank >= LEGEND_III) return 3;
+  return 4;
+}
+
+const BAND_LABEL = {
+  1: "Legend I",
+  2: "Maxed TH18 · defensive core",
+  3: "Legend II/III attacker",
+  4: "Everyone else",
+};
+
 /* Score one member. `player` is a clan-deep player row; `battlelog` is the raw
    API response for that member, or null if the call failed. */
 function scoreMember(player, battlelog) {
@@ -313,13 +398,18 @@ function scoreMember(player, battlelog) {
   let score = rated ? form * (0.5 + 0.5 * confidence) * 100 : 0;
 
   const par = expectedAttackGain(rank);
+  const band = priorityBand(player, summary);
+  const tripledAgainst = tripledAgainstRate(summary);
   const { verdict, rationale } = explain({
-    player, summary, rank, par, score, form, confidence, rated,
+    player, summary, rank, par, score, form, confidence, rated, band, tripledAgainst,
   });
 
   return {
     verdict,
     rationale,
+    band,
+    bandLabel: BAND_LABEL[band],
+    tripledAgainst,
     tag: player.tag,
     name: player.name,
     thLevel: player.thLevel,
@@ -366,12 +456,37 @@ function rankClan(players, battlelogs, { warSize = 15 } = {}) {
 
   scored.forEach((m, i) => { m.rank = i + 1; });
 
-  // Suggested roster: the strongest rated players by score, independent of the
-  // league grouping above — the table is ordered by tier for reading, but who
-  // actually plays should still come down to form.
-  const byScore = scored.slice()
-    .filter((m) => m.rated)
-    .sort((a, b) => b.score - a.score);
+  // Suggested roster: filled band by band — every Legend I first, then the maxed
+  // TH18 defensive core, then Legend II/III attackers — taking the best form
+  // available inside each band. Picking purely on score would fill the roster
+  // with whoever attacked most this week and leave the clan soft on defence.
+  //
+  // Priority only applies to players who are actually playing. A maxed base
+  // helps nobody if its owner has stopped attacking, and without the floor band
+  // 2 filled on hero levels alone: four players scoring 46-53 displaced
+  // attackers scoring 93-96 whose only shortfall was unmaxed heroes. Below the
+  // floor a player keeps their band for display but queues on form with
+  // everyone else.
+  //
+  // Unrated players and those with no attacks at all are skipped entirely —
+  // suggesting someone we know nothing about presents a gap as a judgement.
+  const eligible = scored.filter((m) => m.rated && m.summary.attackCount > 0);
+  const effectiveBand = (m) => (m.score >= BAND_MIN_SCORE ? m.band : 4);
+
+  const byScore = eligible.slice().sort((a, b) => {
+    const bandDiff = effectiveBand(a) - effectiveBand(b);
+    if (bandDiff) return bandDiff;
+    // Inside the defensive core, prefer the base that actually holds. Two
+    // players with a full hero roster measured 6% and 75% three-starred, so
+    // hero levels alone cannot separate them — the record can. Unmeasured
+    // players sort between the two, not last.
+    if (effectiveBand(a) === 2) {
+      const held = (m) => (m.tripledAgainst == null ? 0.5 : m.tripledAgainst);
+      const defDiff = held(a) - held(b);
+      if (Math.abs(defDiff) > 0.15) return defDiff;
+    }
+    return b.score - a.score;
+  });
 
   return {
     members: scored,

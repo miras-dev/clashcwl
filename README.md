@@ -130,8 +130,30 @@ to Legend I, where `id - 105000000` is the ladder position.
 The table is **grouped by league, hardest first** — every Legend I player, then
 Legend II, and so on — with score ordering within each league. A player's tier is
 the harder-won fact: score reflects a few days of form, but reaching Legend I took
-a season of it. The suggested roster still picks purely on score across all
-leagues, since who plays should come down to form.
+a season of it.
+
+### How the roster is filled
+
+CWL is won by attacking well *and* by not being three-starred, so the suggested
+roster fills in priority order rather than by score alone:
+
+| Priority | Who | Why |
+| --- | --- | --- |
+| P1 | Legend I | Sustained form under the harshest modifiers in the game |
+| P2 | Maxed TH18 in Legend II/III | The defensive core — bases that resist a casual three-star |
+| P3 | Legend II/III attackers | Not maxed, but consistently taking stars off hard bases |
+
+Two guards keep this honest. Priority only applies to players who are **actually
+playing**: below a score of 60 a maxed base drops out of P2 and queues on form
+with everyone else, because a strong base helps nobody if its owner has stopped
+attacking. Without that floor, four maxed players scoring 46–53 displaced
+attackers scoring 93–96 whose only shortfall was unmaxed heroes.
+
+Within P2, the player **harder to three-star** is preferred. The API exposes no
+defensive building levels — nothing that says "supercharged" — but how often
+someone is actually tripled in ranked defences is measurable, and it beats hero
+levels as a signal: two players with a full hero roster measured 6% and 75%,
+because base layout decides it and only the outcome reveals that.
 
 War preference is ignored here. The in/out flag governs regular wars; for CWL the
 whole clan signs up.

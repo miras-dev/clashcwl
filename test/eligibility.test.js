@@ -293,6 +293,71 @@ console.log("verdicts");
   });
 }
 
+console.log("selection priorities");
+{
+  const attacks = (n, stars, dest) => ({ items: Array.from({ length: n }, (_, i) => ({
+    battleType: "ranked", attack: true, stars, destructionPercentage: dest,
+    battleTimestamp: `2026081${i % 5}T${String(i % 24).padStart(2, "0")}0000.000Z` })) });
+  const good = attacks(14, 3, 100);
+  const weak = attacks(12, 1, 25);
+
+  const p = (tag, tier, hero, th) => ({ tag, name: tag, leagueTier: tier, heroSum: hero, thLevel: th || 18 });
+
+  test("Legend I is band 1, maxed TH18 in Legend II/III is band 2", () => {
+    assert.strictEqual(scoreMember(p("#A", "Legend I", 480), good).band, 1);
+    assert.strictEqual(scoreMember(p("#B", "Legend II", 480), good).band, 2);
+    assert.strictEqual(scoreMember(p("#C", "Legend III", 391), good).band, 3);
+    assert.strictEqual(scoreMember(p("#D", "Electro League 33", 480), good).band, 4);
+  });
+
+  test("an unmaxed TH18 is not part of the defensive core", () => {
+    assert.strictEqual(scoreMember(p("#E", "Legend II", 442), good).band, 3);
+  });
+
+  test("Legend I fills the roster before anyone else", () => {
+    const r = rankClan(
+      [p("#L1", "Legend I", 400), p("#L2", "Legend II", 480)],
+      [{ tag: "#L1", battlelog: attacks(12, 2, 80) }, { tag: "#L2", battlelog: good }],
+      { warSize: 2 });
+    assert.strictEqual(r.suggested[0], "#L1", "Legend I should be picked first");
+  });
+
+  // Regression: band 2 filled on hero levels alone, so four maxed players
+  // scoring 46-53 displaced attackers scoring 93-96 whose only shortfall was
+  // unmaxed heroes. A maxed base helps nobody if its owner has stopped playing.
+  test("a maxed player who has stopped attacking loses their priority", () => {
+    const r = rankClan(
+      [p("#IDLE", "Legend II", 480), p("#SHARP", "Legend III", 391)],
+      [{ tag: "#IDLE", battlelog: weak }, { tag: "#SHARP", battlelog: good }],
+      { warSize: 1 });
+    assert.deepStrictEqual(r.suggested, ["#SHARP"],
+      "the active unmaxed attacker should take the slot");
+  });
+
+  test("inside the defensive core, the harder base wins", () => {
+    // Same form; one is three-starred far more often.
+    const soft = { items: [...attacks(12, 3, 100).items,
+      ...Array.from({ length: 10 }, (_, i) => ({ battleType: "ranked", attack: false, stars: 3,
+        destructionPercentage: 100, battleTimestamp: `2026081${i % 5}T0${i % 9}0000.000Z` }))] };
+    const hard = { items: [...attacks(12, 3, 100).items,
+      ...Array.from({ length: 10 }, (_, i) => ({ battleType: "ranked", attack: false, stars: 1,
+        destructionPercentage: 40, battleTimestamp: `2026081${i % 5}T0${i % 9}0000.000Z` }))] };
+    const r = rankClan(
+      [p("#SOFT", "Legend II", 480), p("#HARD", "Legend II", 480)],
+      [{ tag: "#SOFT", battlelog: soft }, { tag: "#HARD", battlelog: hard }],
+      { warSize: 1 });
+    assert.deepStrictEqual(r.suggested, ["#HARD"]);
+  });
+
+  test("a player with zero attacks is never suggested, whatever their band", () => {
+    const noAttacks = { items: Array.from({ length: 10 }, (_, i) => ({
+      battleType: "ranked", attack: false, stars: 1, destructionPercentage: 30,
+      battleTimestamp: `2026081${i % 5}T120000.000Z` })) };
+    const r = rankClan([p("#Z", "Legend I", 480)], [{ tag: "#Z", battlelog: noAttacks }], { warSize: 15 });
+    assert.deepStrictEqual(r.suggested, []);
+  });
+}
+
 console.log("rankClan");
 {
   const players = [

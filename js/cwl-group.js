@@ -582,6 +582,7 @@ function renderEligibility() {
     return `<tr style="${inRoster ? "" : "opacity:.55"}">
       <td class="muted">${m.rank}</td>
       <td><strong>${escG(m.name)}</strong>
+        ${inRoster ? `<span class="pill" style="color:var(--green); border-color:var(--green)">P${m.band}</span>` : ""}
         <div class="muted small">${escG(m.tag)}${m.leagueTier ? " · " + escG(m.leagueTier) : ""}</div></td>
       <td><span class="player-chip"><span class="th">TH${m.thLevel || "?"}</span></span></td>
       <td>${scoreCell}</td>
@@ -671,6 +672,27 @@ function glossaryHtml() {
       actually used and how they went. Town Hall, hero levels and war stars are deliberately
       not counted — they reward accumulation rather than current form, and would let a maxed
       account parked at a lower Town Hall outrank someone who is genuinely attacking now.</p>
+
+      <h4 style="margin:14px 0 4px">How the roster is filled <span class="muted small">— the P1/P2/P3 tags</span></h4>
+      <p class="muted">CWL is won by attacking well <em>and</em> by not being three-starred, so
+      the suggested roster fills in priority order rather than by score alone:</p>
+      <table style="margin:8px 0"><thead><tr><th>Priority</th><th>Who</th><th>Why</th></tr></thead><tbody>
+        <tr><td><strong>P1</strong></td><td>Legend I</td>
+            <td class="muted">Getting there takes sustained form under the harshest modifiers
+            in the game — a stronger claim than one good week</td></tr>
+        <tr><td><strong>P2</strong></td><td>Maxed TH18 in Legend II/III</td>
+            <td class="muted">The defensive core: bases the opposition cannot casually
+            three-star</td></tr>
+        <tr><td><strong>P3</strong></td><td>Legend II/III attackers</td>
+            <td class="muted">Not maxed, but consistently taking stars off hard bases</td></tr>
+      </tbody></table>
+      <p class="muted">Priority only applies to players who are actually playing: below a
+      score of ${60} a maxed base drops out of P2 and queues on form with everyone else,
+      because a strong base helps nobody if its owner has stopped attacking. Within P2, the
+      player who is <strong>harder to three-star</strong> is preferred — the API exposes no
+      defence levels, but how often someone is actually tripled is measurable, and it beats
+      hero levels: two players with a full hero roster measured 6% and 75%, because layout
+      decides it.</p>
 
       <h4 style="margin:14px 0 4px">Pick / Maybe / Avoid <span class="muted small">— the call under each row</span></h4>
       <p class="muted">The score alone does not settle whether to field someone. A 55 might be
