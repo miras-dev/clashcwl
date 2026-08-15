@@ -271,9 +271,25 @@
       </details>
     </div>
 
-    <!-- ── Step 5: assignments ──────────────────────────────── -->
+    <!-- ── Step 5: eligibility ──────────────────────────────── -->
+    <div id="eligibilitySection" style="display:none">
+      <h2>5 · Who should play CWL</h2>
+      <p class="muted" style="margin-top:-8px; margin-bottom:16px">
+        Ranks your clan on <strong>recent Ranked form</strong> — attacks actually used and
+        trophies earned per attack — alongside Town Hall, heroes and war stars. Someone who
+        never attacks scores below an active smaller account, because CWL is won by people
+        who turn up.
+      </p>
+      <div class="row" style="margin-bottom:14px">
+        <button id="loadEligibilityBtn">Analyse ranked form</button>
+        <span id="eligibilityMsg" class="muted small"></span>
+      </div>
+      <div id="eligibilityList"></div>
+    </div>
+
+    <!-- ── Step 6: assignments ──────────────────────────────── -->
     <div id="assignSection" style="display:none">
-      <h2>5 · War-day assignments</h2>
+      <h2>6 · War-day assignments</h2>
       <p class="muted" style="margin-top:-8px; margin-bottom:16px">
         Auto-matched: your strongest attackers are saved for the toughest opponents, weaker
         players get the easier days. Change any day's roster with the dropdowns.
@@ -289,6 +305,8 @@
   </main>
 
   <script src="js/data.js"></script>
+  <script src="js/battlelog.js"></script>
+  <script src="js/eligibility.js"></script>
   <script src="js/cwl-group.js"></script>
 </body>
 </html>

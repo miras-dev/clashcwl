@@ -168,18 +168,23 @@ function strengthColor(s) {
 /* ---------------- busy / loading feedback ----------------
    Deep clan fetches take ~20s (every member's profile). Without a visible
    busy state users assume the page froze and click again, firing duplicates. */
+// Every button that fires an API call. A button missing from this list would be
+// disabled by its own setBusy(true) and never re-enabled, stranding it after the
+// first click.
+const BUSY_BUTTONS = "#addClanBtn,#loadMyClanBtn,#autoGroupBtn,#refreshRosterBtn,#loadEligibilityBtn";
+
 function setBusy(btn, on, label) {
   if (!btn) return;
   if (on) {
     btn.dataset.orig = btn.dataset.orig || btn.innerHTML;
     btn.innerHTML = `<span class="spinner"></span>${label || "Working…"}`;
-    btn.disabled = true;
-    document.querySelectorAll("#addClanBtn,#loadMyClanBtn,#autoGroupBtn,#refreshRosterBtn")
-      .forEach(b => { if (b !== btn) b.disabled = true; });
+    document.querySelectorAll(BUSY_BUTTONS).forEach(b => { b.disabled = true; });
   } else {
     if (btn.dataset.orig) btn.innerHTML = btn.dataset.orig;
-    document.querySelectorAll("#addClanBtn,#loadMyClanBtn,#autoGroupBtn,#refreshRosterBtn")
-      .forEach(b => { b.disabled = false; });
+    // Clear the busy button too — it is inside the selector, but only if the
+    // caller passed one that the list knows about.
+    btn.disabled = false;
+    document.querySelectorAll(BUSY_BUTTONS).forEach(b => { b.disabled = false; });
   }
 }
 function msg(text, kind) {
@@ -512,6 +517,115 @@ function renderRoster() {
       if (p) { p.active = cb.checked; saveState(); renderRoster(); renderAssignments(); }
     });
   });
+}
+
+/* ---------------- CWL eligibility ----------------
+   Ranks the roster on recent Ranked form (js/battlelog.js + js/eligibility.js)
+   rather than on Town Hall alone. Held in memory, not state: the battle log is
+   a rolling ~50-battle window, so a cached ranking goes stale within days and a
+   stale "who should play" list is worse than no list.                        */
+let eligibility = null;
+
+function confidenceLabel(c) {
+  if (c >= 0.8) return { text: "solid", cls: "" };
+  if (c >= 0.5) return { text: "partial", cls: "muted" };
+  return { text: "thin", cls: "muted" };
+}
+
+function renderEligibility() {
+  const show = state.roster.length > 0;
+  $g("eligibilitySection").style.display = show ? "block" : "none";
+  if (!show || !eligibility) return;
+
+  const suggested = new Set(eligibility.suggested);
+  const rows = eligibility.members.map((m) => {
+    const s = m.summary;
+    const conf = confidenceLabel(m.confidence);
+    const inRoster = suggested.has(m.tag);
+
+    // Form is the headline number, so an absent one has to read as "unknown"
+    // rather than as a low score.
+    const formCell = m.formScore == null
+      ? `<span class="muted">—</span>`
+      : `<strong style="color:${strengthColor(m.formScore)}">${m.formScore}</strong>`;
+
+    const attacks = s.hasData
+      ? `${s.attackCount} atk${s.avgAttackGain ? ` · +${s.avgAttackGain.toFixed(0)} avg` : ""}`
+      : "no log";
+
+    return `<tr style="${inRoster ? "" : "opacity:.55"}">
+      <td class="muted">${m.rank}</td>
+      <td><strong>${escG(m.name)}</strong>
+        <div class="muted small">${escG(m.tag)}${m.leagueTier ? " · " + escG(m.leagueTier) : ""}</div></td>
+      <td><span class="player-chip"><span class="th">TH${m.thLevel || "?"}</span></span></td>
+      <td><strong style="color:${strengthColor(m.score)}">${m.score}</strong></td>
+      <td>${formCell}</td>
+      <td class="muted small">${m.rosterScore}</td>
+      <td class="muted small">${escG(attacks)}</td>
+      <td class="small ${conf.cls}">${conf.text}</td>
+      <td class="muted small">${s.windowDays ? s.windowDays.toFixed(1) + "d" : "—"}</td>
+    </tr>` + (m.reasons.length
+      ? `<tr style="${inRoster ? "" : "opacity:.55"}"><td></td>
+           <td colspan="8" class="muted small" style="padding-top:0; border-top:none">
+             ${m.reasons.map(escG).join(" · ")}</td></tr>`
+      : "");
+  }).join("");
+
+  const warn = eligibility.missingLogs
+    ? `<p class="muted small" style="margin-top:10px">
+         ${eligibility.missingLogs} player${eligibility.missingLogs === 1 ? "" : "s"} had no
+         readable battle log and ${eligibility.missingLogs === 1 ? "was" : "were"} scored on
+         roster strength alone. The API returns an error for some accounts; it is not a sign
+         they are inactive.</p>`
+    : "";
+
+  $g("eligibilityList").innerHTML = `
+    <p class="muted small">Top ${eligibility.suggested.length} suggested for war size
+      ${state.warSize} — dimmed rows fall outside it. Form covers only the last few days:
+      the game keeps a rolling window of about 50 battles, so an active player's history
+      is shorter than a casual one's.</p>
+    <table style="margin-top:10px"><thead><tr>
+      <th>#</th><th>Player</th><th>TH</th><th>Score</th><th>Form</th>
+      <th>Roster</th><th>Ranked attacks</th><th>Evidence</th><th>Window</th>
+    </tr></thead><tbody>${rows}</tbody></table>${warn}`;
+}
+
+async function loadEligibility() {
+  const btn = $g("loadEligibilityBtn");
+  const out = $g("eligibilityMsg");
+  if (!state.myTag) { out.textContent = "Load your clan first."; return; }
+
+  setBusy(btn, true, "Reading battle logs…");
+  // One call per member, so this is the slowest thing the page does. Say so,
+  // or it reads as a hang.
+  out.textContent = `Fetching ranked battles for every member — this takes about 20 seconds…`;
+
+  try {
+    const tag = normTag(state.myTag).replace(/^#/, "");
+    // Sequential, not Promise.all: both endpoints fan out to one request per
+    // member, and firing them together spends the per-IP budget twice over in
+    // the same window — which fails as a rate limit, not as a real error.
+    const deep = await apiGet("clan-deep", tag);
+    const logs = await apiGet("clan-battlelogs", tag);
+
+    eligibility = Eligibility.rankClan(deep.players || [], logs.members || [], {
+      warSize: Number(state.warSize) || 15,
+    });
+
+    const withForm = eligibility.members.filter((m) => m.formScore != null).length;
+    out.textContent = `Ranked ${eligibility.members.length} players · ${withForm} with ranked form`;
+    out.style.color = "var(--green)";
+    renderEligibility();
+  } catch (e) {
+    // Loading the clan already spends much of the per-IP budget, so running this
+    // straight afterwards is the most likely way to hit the limit. Say what to do.
+    out.textContent = /too many requests/i.test(e.message)
+      ? "Rate limit reached — the clan load used this minute's requests. Wait a minute and try again."
+      : `Could not read battle logs — ${e.message}`;
+    out.style.color = "var(--red)";
+  } finally {
+    setBusy(btn, false);
+  }
 }
 
 /* ---------------- assignments ----------------
@@ -848,7 +962,12 @@ async function loadRosterFor(tag) {
   }
   state.roster = roster;
   saveState();
+  // A new roster invalidates any ranking built from the old one.
+  eligibility = null;
+  $g("eligibilityList").innerHTML = "";
+  $g("eligibilityMsg").textContent = "";
   renderRoster();
+  renderEligibility();
   renderAssignments();
 }
 
@@ -964,6 +1083,7 @@ $g("refreshRosterBtn").addEventListener("click", async () => {
   finally { setBusy(btn, false); }
 });
 
+$g("loadEligibilityBtn").addEventListener("click", loadEligibility);
 $g("autoAssignBtn").addEventListener("click", autoAssign);
 $g("clearAssignBtn").addEventListener("click", () => { state.assignments = {}; saveState(); renderAssignments(); });
 
@@ -1073,7 +1193,7 @@ function roundsMsg(text, kind) {
 
 $g("loadRoundsBtn").addEventListener("click", loadRounds);
 
-function renderAll() { renderClans(); renderAnalysis(); renderRoster(); renderAssignments(); renderRounds(); }
+function renderAll() { renderClans(); renderAnalysis(); renderRoster(); renderEligibility(); renderAssignments(); renderRounds(); }
 
 $g("myClanTag").value = state.myTag || "";
 $g("leagueSelect").value = state.league || "Master League I";
