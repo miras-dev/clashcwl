@@ -104,5 +104,38 @@ console.log("missing or malformed input");
   });
 }
 
+console.log("server-side trim");
+{
+  // Both server.js and lambda/index.mjs strip battle logs down to ranked/legend
+  // rows and the fields below, to stay under API Gateway's 6MB response limit.
+  // If summariseRanked ever reads a field this trim drops, production silently
+  // scores differently from a raw log. This test is what catches that.
+  const KEPT = ["battleType", "attack", "stars", "destructionPercentage",
+    "battleTimestamp", "opponentName", "opponentPlayerTag", "opponentTownHallLevel"];
+
+  const trim = (json) => ({
+    items: (json.items || [])
+      .filter((b) => b.battleType === "ranked" || b.battleType === "legend")
+      .map((b) => Object.fromEntries(KEPT.map((k) => [k, b[k]]))),
+  });
+
+  test("trimming does not change the summary", () => {
+    const full = summariseRanked(fixture("battlelog-ranked.json"));
+    const lean = summariseRanked(trim(fixture("battlelog-ranked.json")));
+    assert.deepStrictEqual(
+      { net: lean.netTrophies, atk: lean.attackCount, def: lean.defenseCount },
+      { net: full.netTrophies, atk: full.attackCount, def: full.defenseCount });
+    assert.deepStrictEqual(lean.battles.map((b) => b.trophyChange),
+      full.battles.map((b) => b.trophyChange));
+  });
+
+  test("trimming preserves the legend-type summary too", () => {
+    const full = summariseRanked(fixture("battlelog-legend.json"));
+    const lean = summariseRanked(trim(fixture("battlelog-legend.json")));
+    assert.strictEqual(lean.netTrophies, full.netTrophies);
+    assert.strictEqual(lean.attackCount, full.attackCount);
+  });
+}
+
 console.log(failures ? `\n${failures} test(s) failed` : "\nAll tests passed");
 process.exit(failures ? 1 : 0);

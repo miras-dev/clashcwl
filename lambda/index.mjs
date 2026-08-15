@@ -188,6 +188,102 @@ export const handler = async (event) => {
     }
   }
 
+  // Ranked/Legend battle logs for a whole clan — who is actually using their
+  // attacks, and how well. See js/battlelog.js for what the endpoint does and
+  // does not return; the scoring that consumes this lives in js/eligibility.js.
+  //
+  // This is the most expensive route here: one upstream call per member, and
+  // API Gateway hangs up at 29s no matter what the function's own timeout is.
+  // So it works to a wall-clock budget and returns what it has, marking the rest
+  // as unfetched — a partial ranking the page can explain beats a 504 it cannot.
+  if (path === "/clan-battlelogs") {
+    if (!tag) return reply(400, { error: "bad_request" });
+
+    const cacheKey = `clan-battlelogs-${tag}`;
+    const cached = getCached(cacheKey);
+    if (cached) return reply(200, cached);
+
+    // Leaves room for the clan fetch, JSON serialisation and Gateway overhead
+    // inside the 29s ceiling.
+    const BUDGET_MS = 20000;
+    const startedAt = Date.now();
+
+    try {
+      const clanRes = await cocGet(`/clans/%23${encodeURIComponent(tag)}`);
+      if (clanRes.status !== 200) return reply(clanRes.status, clanRes.json);
+      const list = clanRes.json.memberList || [];
+
+      // Keep only ranked/legend battles, and only the fields the scoring reads.
+      // A raw clan of 40 is ~2.5MB against API Gateway's hard 6MB response
+      // limit; nearly 60% of that is homeVillage battles and loot totals nothing
+      // downstream looks at. Must stay in step with js/battlelog.js.
+      const leanLog = (json) => ({
+        items: (json.items || [])
+          .filter((b) => b.battleType === "ranked" || b.battleType === "legend")
+          .map((b) => ({
+            battleType: b.battleType,
+            attack: b.attack,
+            stars: b.stars,
+            destructionPercentage: b.destructionPercentage,
+            battleTimestamp: b.battleTimestamp,
+            opponentName: b.opponentName,
+            opponentPlayerTag: b.opponentPlayerTag,
+            opponentTownHallLevel: b.opponentTownHallLevel,
+          })),
+      });
+
+      const fetchOne = async (m) => {
+        const memberTag = encodeURIComponent(m.tag.replace(/^#/, ""));
+        // One retry: timeouts here are transient far more often than they are a
+        // real failure for that player. A non-200 is the API's verdict, not a
+        // fault, so it is not retried.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const r = await cocGet(`/players/%23${memberTag}/battlelog`);
+            if (r.status === 200) return { tag: m.tag, name: m.name, battlelog: leanLog(r.json), error: null };
+            return { tag: m.tag, name: m.name, battlelog: null, error: `HTTP ${r.status}` };
+          } catch (e) {
+            if (attempt === 1) return { tag: m.tag, name: m.name, battlelog: null, error: e.message };
+          }
+        }
+      };
+
+      const members = [];
+      let truncated = false;
+      const WAVE = 8;
+      for (let i = 0; i < list.length; i += WAVE) {
+        if (Date.now() - startedAt > BUDGET_MS) {
+          // Out of time. Report the rest as unfetched rather than dropping them:
+          // a missing member must not read as an inactive one.
+          truncated = true;
+          for (const m of list.slice(i)) {
+            members.push({ tag: m.tag, name: m.name, battlelog: null, error: "not_fetched" });
+          }
+          break;
+        }
+        // allSettled, not all: one timeout must not discard the whole clan's work.
+        const wave = await Promise.allSettled(list.slice(i, i + WAVE).map(fetchOne));
+        members.push(...wave.map((r, j) => r.status === "fulfilled" ? r.value : {
+          tag: list[i + j].tag, name: list[i + j].name, battlelog: null,
+          error: r.reason ? String(r.reason.message || r.reason) : "unknown",
+        }));
+      }
+
+      const responseBody = {
+        tag: clanRes.json.tag, name: clanRes.json.name,
+        fetchedAt: new Date().toISOString(),
+        truncated,
+        members,
+      };
+      // A truncated result is still worth caching — it spares the next caller the
+      // same 20 seconds — but not for the full TTL, so the gaps fill in sooner.
+      if (!truncated) setCached(cacheKey, responseBody);
+      return reply(200, responseBody);
+    } catch (e) {
+      return reply(502, { error: "upstream", message: e.message });
+    }
+  }
+
   // Which players each clan in the group has actually fielded, round by round.
   // The roster on paper says little — this is who they put in a war, with the
   // Town Hall levels, so you can see a clan's real CWL line-up and how much it
@@ -320,6 +416,8 @@ export const handler = async (event) => {
     if (path === "/clan" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}`;
     else if (path === "/clan-members" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/members`;
     else if (path === "/player" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}`;
+    // Undocumented but live on the official API — see js/battlelog.js.
+    else if (path === "/battlelog" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}/battlelog`;
     else if (path === "/warlog" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/warlog?limit=20`;
     else if (path === "/cwl-group" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/currentwar/leaguegroup`;
 

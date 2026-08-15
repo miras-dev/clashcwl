@@ -571,6 +571,16 @@ function renderEligibility() {
       : "");
   }).join("");
 
+  // Production runs on Lambda behind API Gateway, which hangs up at 29s, so a
+  // big clan can come back part-fetched. Saying so matters: those players are
+  // unmeasured, not inactive, and the difference decides whether you bench them.
+  const truncWarn = eligibility.truncated
+    ? `<p class="small" style="margin-top:10px; color:var(--gold)">
+         Ran out of time fetching the whole clan, so some players were never
+         checked. Run it again to fill them in — the ones already fetched are
+         cached, so the second pass gets further.</p>`
+    : "";
+
   const warn = eligibility.missingLogs
     ? `<p class="muted small" style="margin-top:10px">
          ${eligibility.missingLogs} player${eligibility.missingLogs === 1 ? "" : "s"} had no
@@ -587,7 +597,7 @@ function renderEligibility() {
     <table style="margin-top:10px"><thead><tr>
       <th>#</th><th>Player</th><th>TH</th><th>Score</th><th>Form</th>
       <th>Roster</th><th>Ranked attacks</th><th>Evidence</th><th>Window</th>
-    </tr></thead><tbody>${rows}</tbody></table>${warn}`;
+    </tr></thead><tbody>${rows}</tbody></table>${truncWarn}${warn}`;
 }
 
 async function loadEligibility() {
@@ -611,6 +621,8 @@ async function loadEligibility() {
     eligibility = Eligibility.rankClan(deep.players || [], logs.members || [], {
       warSize: Number(state.warSize) || 15,
     });
+    // Set by the Lambda when it hit its wall-clock budget mid-clan.
+    eligibility.truncated = !!logs.truncated;
 
     const withForm = eligibility.members.filter((m) => m.formScore != null).length;
     out.textContent = `Ranked ${eligibility.members.length} players · ${withForm} with ranked form`;

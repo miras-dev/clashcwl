@@ -256,12 +256,30 @@ const server = http.createServer(async (req, res) => {
         // allSettled, not all: a single timeout must not discard the whole clan's
         // work. One retry, because timeouts here are transient far more often
         // than they are a real failure for that player.
+        // Keep only ranked/legend battles and the fields the scoring reads —
+        // the same trim the Lambda applies, so dev and production agree. Must
+        // stay in step with js/battlelog.js.
+        const leanLog = (json) => ({
+          items: (json.items || [])
+            .filter((b) => b.battleType === "ranked" || b.battleType === "legend")
+            .map((b) => ({
+              battleType: b.battleType,
+              attack: b.attack,
+              stars: b.stars,
+              destructionPercentage: b.destructionPercentage,
+              battleTimestamp: b.battleTimestamp,
+              opponentName: b.opponentName,
+              opponentPlayerTag: b.opponentPlayerTag,
+              opponentTownHallLevel: b.opponentTownHallLevel,
+            })),
+        });
+
         const fetchOne = async (m) => {
           const memberTag = encodeURIComponent(m.tag.replace(/^#/, ""));
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
               const r = await cocGet(`/players/%23${memberTag}/battlelog`);
-              if (r.status === 200) return { tag: m.tag, name: m.name, battlelog: r.json, error: null };
+              if (r.status === 200) return { tag: m.tag, name: m.name, battlelog: leanLog(r.json), error: null };
               // A non-200 is the API's verdict, not a transient fault — don't retry it.
               return { tag: m.tag, name: m.name, battlelog: null, error: `HTTP ${r.status}` };
             } catch (e) {
