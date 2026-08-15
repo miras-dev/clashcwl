@@ -545,11 +545,6 @@ function renderEligibility() {
     const s = m.summary;
     const conf = confidenceLabel(m.confidence);
     const inRoster = suggested.has(m.tag);
-    // A player who has opted OUT of war can rank high on form yet never be
-    // picked. Dimming alone made them look selected — they sit among the top
-    // rows undimmed while the players who actually fill those slots appear
-    // below them — so the name carries the exclusion too.
-    const optedOut = m.warPreference === "out";
 
     // Form is the headline number, so an absent one has to read as "unknown"
     // rather than as a low score.
@@ -573,8 +568,7 @@ function renderEligibility() {
 
     return `<tr style="${inRoster ? "" : "opacity:.55"}">
       <td class="muted">${m.rank}</td>
-      <td><strong${optedOut ? ` style="text-decoration:line-through; opacity:.7"` : ""}>${escG(m.name)}</strong>${
-        optedOut ? ` <span class="pill" style="color:var(--red); border-color:var(--red)">OUT</span>` : ""}
+      <td><strong>${escG(m.name)}</strong>
         <div class="muted small">${escG(m.tag)}${m.leagueTier ? " · " + escG(m.leagueTier) : ""}</div></td>
       <td><span class="player-chip"><span class="th">TH${m.thLevel || "?"}</span></span></td>
       <td>${scoreCell}</td>
@@ -623,8 +617,10 @@ function renderEligibility() {
     : "";
 
   $g("eligibilityList").innerHTML = `
-    <p class="muted small">Top ${eligibility.suggested.length} suggested for war size
-      ${state.warSize} — dimmed rows fall outside it. Form covers only the last few days:
+    <p class="muted small">Grouped by league, hardest first — every Legend I player, then
+      Legend II, and so on — and by score within each league. The
+      ${eligibility.suggested.length} highlighted rows are the strongest by score regardless
+      of league, for war size ${state.warSize}. Form covers only the last few days:
       the game keeps a rolling window of about 50 battles, so an active player's history
       is shorter than a casual one's.
       <br />Scored on <strong>ranked form only</strong> — attacks used and how they went.

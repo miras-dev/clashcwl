@@ -223,9 +223,13 @@ console.log("scoreMember");
     assert.ok(m.reasons.some((r) => /unrated/i.test(r)),
       `reasons were: ${JSON.stringify(m.reasons)}`);
   });
-  test("war preference OUT is surfaced", () => {
-    const m = scoreMember({ ...maxed, warPreference: "out" }, rankedLog);
-    assert.ok(m.reasons.some((r) => /OUT/.test(r)));
+  test("war preference is ignored — the whole clan plays CWL", () => {
+    // The in/out flag governs regular wars, not CWL, where everyone signs up.
+    const out = scoreMember({ ...maxed, warPreference: "out" }, rankedLog);
+    const inWar = scoreMember({ ...maxed, warPreference: "in" }, rankedLog);
+    assert.strictEqual(out.score, inWar.score);
+    assert.ok(!out.reasons.some((r) => /OUT/.test(r)),
+      `reasons should not mention OUT: ${JSON.stringify(out.reasons)}`);
   });
 }
 
@@ -250,14 +254,39 @@ console.log("rankClan");
     const b = r.members.find((m) => m.tag === "#B");
     assert.strictEqual(b.summary.hasData, false, "B has no log and must stay empty");
   });
-  test("ranks are assigned in score order", () => {
+  test("ranks are assigned in display order", () => {
     const r = rankClan(players, logs);
-    assert.strictEqual(r.members[0].rank, 1);
-    assert.ok(r.members[0].score >= r.members[1].score);
+    assert.deepStrictEqual(r.members.map((m) => m.rank), [1, 2, 3]);
   });
-  test("opted-out players are excluded from the suggested roster", () => {
+
+  test("within one league, higher score ranks first", () => {
+    const same = [
+      { tag: "#LOW", name: "Low", leagueTier: "Legend II" },
+      { tag: "#HIGH", name: "High", leagueTier: "Legend II" },
+    ];
+    const busy = { items: Array.from({ length: 14 }, (_, i) => ({
+      battleType: "ranked", attack: true, stars: 3, destructionPercentage: 100,
+      battleTimestamp: `2026081${i % 5}T${String(i % 24).padStart(2, "0")}0000.000Z` })) };
+    const quiet = { items: [{ battleType: "ranked", attack: true, stars: 1,
+      destructionPercentage: 30, battleTimestamp: "20260815T120000.000Z" }] };
+    const r = rankClan(same, [{ tag: "#LOW", battlelog: quiet }, { tag: "#HIGH", battlelog: busy }]);
+    assert.strictEqual(r.members[0].tag, "#HIGH");
+  });
+  test("opted-out players are still eligible for CWL", () => {
+    // Everyone in the clan plays CWL; the in/out flag is for regular wars.
     const r = rankClan(players, logs, { warSize: 15 });
-    assert.ok(!r.suggested.includes("#C"), "an OUT player must not be suggested");
+    assert.ok(r.suggested.includes("#C"), "an OUT player should still be suggested");
+  });
+
+  test("members are grouped by league, strongest tier first", () => {
+    const tiered = [
+      { tag: "#L3", name: "L3", leagueTier: "Legend III" },
+      { tag: "#L1", name: "L1", leagueTier: "Legend I" },
+      { tag: "#L2", name: "L2", leagueTier: "Legend II" },
+    ];
+    const tieredLogs = tiered.map((p) => ({ tag: p.tag, battlelog: rankedLog }));
+    const r = rankClan(tiered, tieredLogs);
+    assert.deepStrictEqual(r.members.map((m) => m.tag), ["#L1", "#L2", "#L3"]);
   });
   test("suggested roster respects war size", () => {
     const many = Array.from({ length: 30 }, (_, i) => ({ ...maxed, tag: `#T${i}`, name: `P${i}` }));

@@ -127,6 +127,15 @@ skill, not the trophies their league happens to yield.
 Tier order comes from the game's own `GET /leaguetiers` — 37 rungs from Unranked
 to Legend I, where `id - 105000000` is the ladder position.
 
+The table is **grouped by league, hardest first** — every Legend I player, then
+Legend II, and so on — with score ordering within each league. A player's tier is
+the harder-won fact: score reflects a few days of form, but reaching Legend I took
+a season of it. The suggested roster still picks purely on score across all
+leagues, since who plays should come down to form.
+
+War preference is ignored here. The in/out flag governs regular wars; for CWL the
+whole clan signs up.
+
 ### Collecting a longer window
 
 The live battle log is a rolling ~50-battle buffer. For the most active players

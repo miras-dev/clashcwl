@@ -223,7 +223,8 @@ function scoreMember(player, battlelog) {
   if (rank >= 36) reasons.push("Legend I — the harshest battle modifiers in the game");
   else if (rank >= 35) reasons.push("Legend II — heavy battle modifiers");
   if (summary.tripleRate === 1 && summary.attackCount >= 5) reasons.push("Triples every attack");
-  if (player.warPreference === "out") reasons.push("War preference is OUT");
+  // War preference is deliberately not surfaced here: for CWL the whole clan
+  // signs up regardless of the in/out flag, which governs regular wars.
 
   return {
     tag: player.tag,
@@ -256,23 +257,33 @@ function rankClan(players, battlelogs, { warSize = 15 } = {}) {
 
   const scored = (players || [])
     .map((p) => scoreMember(p, logsByTag.get(p.tag) || null))
-    // Score first, then rated ahead of unrated on a tie. Both a proven-idle
-    // player and an unrated one sit at 0, but they are not equivalent: one is a
-    // gap in our data, the other is a player we watched decline to attack. The
-    // unrated player might still turn up, so they sort above.
-    .sort((a, b) => (b.score - a.score) || (Number(a.rated) - Number(b.rated)));
+    // League first, then score within it. Everyone in Legend I comes before
+    // everyone in Legend II, and so on down the ladder, because a player's tier
+    // is the harder-won fact: score measures a few days of form, but reaching
+    // Legend I took a season of it. Unknown tiers sort last among their score
+    // peers rather than being treated as Unranked.
+    //
+    // Rated ahead of unrated breaks the remaining tie. A proven-idle player and
+    // an unrated one both sit at 0, but they are not equivalent: one is a gap in
+    // our data, the other is someone we watched decline to attack, so the
+    // unrated player sorts above.
+    .sort((a, b) =>
+      ((b.tierRank ?? -1) - (a.tierRank ?? -1))
+      || (b.score - a.score)
+      || (Number(a.rated) - Number(b.rated)));
 
   scored.forEach((m, i) => { m.rank = i + 1; });
 
+  // Suggested roster: the strongest rated players by score, independent of the
+  // league grouping above — the table is ordered by tier for reading, but who
+  // actually plays should still come down to form.
+  const byScore = scored.slice()
+    .filter((m) => m.rated)
+    .sort((a, b) => b.score - a.score);
+
   return {
     members: scored,
-    // Suggested roster: the top warSize rated players who have not opted out.
-    // Unrated players are excluded rather than filling the tail — suggesting
-    // someone we know nothing about would misrepresent a gap as a judgement.
-    suggested: scored
-      .filter((m) => m.rated && m.warPreference !== "out")
-      .slice(0, warSize)
-      .map((m) => m.tag),
+    suggested: byScore.slice(0, warSize).map((m) => m.tag),
     missingLogs: scored.filter((m) => !m.summary.hasData).length,
     unrated: scored.filter((m) => !m.rated).length,
   };
