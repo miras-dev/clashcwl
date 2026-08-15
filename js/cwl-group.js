@@ -36,7 +36,7 @@ function normTag(t) {
  * not an error. Icons are remote, so they get lazy loading and a transparent
  * failure — a missing badge should cost the name next to it nothing. */
 function leagueBadge(tier, { compact = false } = {}) {
-  const t = root.LeagueTiers ? root.LeagueTiers.resolve(tier) : null;
+  const t = window.LeagueTiers ? window.LeagueTiers.resolve(tier) : null;
   if (!t) return `<span class="muted">—</span>`;
   const size = compact ? 16 : 20;
   return `<span class="league-badge" title="${escG(t.name)} — rank ${t.rank} of 36">
