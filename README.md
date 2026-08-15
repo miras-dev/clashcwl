@@ -90,6 +90,44 @@ The test fixtures are real API responses, and the expected trophy values were re
 off ClashPerk's `/legend days` output for the same player at the same moment — the
 only external check available, since the API itself never returns the number.
 
+## CWL eligibility scoring
+
+`js/eligibility.js` ranks clan members on who should play Clan War League. It
+combines **form** (recent Ranked attacks, from the battle log) with **roster**
+(Town Hall, heroes, war stars), weighting form up to 65% as evidence accumulates.
+
+The important part is that form is measured **against the player's own league**.
+Ranked applies [Battle Modifiers](https://supercell.com/en/games/clashofclans/blog/news/balance-changes-4/)
+that buff defences and defending heroes while penalising the attacker's heroes,
+and they get harsher the higher you climb. Measured across one clan, 29 players
+with 3+ attacks each:
+
+| League | Avg trophies/attack | Triple rate | Avg destruction |
+| --- | --- | --- | --- |
+| Dragon League 30 | +38.7 | 87% | 99.2% |
+| Electro League 33 | +37.8 | 84% | 98.1% |
+| Legend III | +36.8 | 75% | 97.0% |
+| Legend II | +32.6 | 53% | 91.8% |
+| Legend I | +28.1 | 13% | 89.5% |
+
+Scoring raw averages would rank the clan's strongest attackers **last** — they
+post the worst numbers precisely because they compete where it is hardest. So
+each player's average is divided by their tier's par, and a small bonus rewards
+competing high. CWL itself has no modifiers, so what transfers is the player's
+skill, not the trophies their league happens to yield.
+
+Tier order comes from the game's own `GET /leaguetiers` — 37 rungs from Unranked
+to Legend I, where `id - 105000000` is the ladder position.
+
+Two cases are handled explicitly rather than silently: a player with no readable
+battle log is held at a ceiling instead of scored on capability alone, and a
+player whose log shows zero attacks scores below that ceiling. Proven inactivity
+is worse evidence than no evidence, and both are stated in the row.
+
+```bash
+node test/eligibility.test.js
+```
+
 ## Assets & ID mapping
 
 `assets/` holds 168 entity icons (heroes, equipment, troops, spells, sieges, pets,

@@ -549,8 +549,12 @@ function renderEligibility() {
       ? `<span class="muted">—</span>`
       : `<strong style="color:${strengthColor(m.formScore)}">${m.formScore}</strong>`;
 
+    // Show the average against its league's par, or "+38 avg" alone invites the
+    // exact misreading this whole model exists to prevent — that a big number in
+    // an easy league beats a smaller one under Legend I's modifiers.
     const attacks = s.hasData
-      ? `${s.attackCount} atk${s.avgAttackGain ? ` · +${s.avgAttackGain.toFixed(0)} avg` : ""}`
+      ? `${s.attackCount} atk${s.avgAttackGain
+          ? ` · +${s.avgAttackGain.toFixed(0)} vs par ${m.expectedGain}` : ""}`
       : "no log";
 
     return `<tr style="${inRoster ? "" : "opacity:.55"}">
@@ -593,10 +597,14 @@ function renderEligibility() {
     <p class="muted small">Top ${eligibility.suggested.length} suggested for war size
       ${state.warSize} — dimmed rows fall outside it. Form covers only the last few days:
       the game keeps a rolling window of about 50 battles, so an active player's history
-      is shorter than a casual one's.</p>
+      is shorter than a casual one's.
+      <br />Attacks are judged against <strong>their own league's par</strong>, not raw
+      trophies. Ranked Battle Modifiers buff defences and penalise attacking heroes as you
+      climb, so a +30 average in Legend I is a stronger result than +38 several tiers below
+      it — this clan averages 87% triples in Dragon League against 13% in Legend I.</p>
     <table style="margin-top:10px"><thead><tr>
       <th>#</th><th>Player</th><th>TH</th><th>Score</th><th>Form</th>
-      <th>Roster</th><th>Ranked attacks</th><th>Evidence</th><th>Window</th>
+      <th>Roster</th><th>Ranked attacks vs league par</th><th>Evidence</th><th>Window</th>
     </tr></thead><tbody>${rows}</tbody></table>${truncWarn}${warn}`;
 }
 

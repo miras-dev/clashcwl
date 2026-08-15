@@ -5,7 +5,8 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { rosterScore, formScore, scoreMember, rankClan } = require("../js/eligibility.js");
+const { rosterScore, formScore, scoreMember, rankClan,
+        tierRank, expectedAttackGain, tierBonus } = require("../js/eligibility.js");
 
 const rankedLog = JSON.parse(
   fs.readFileSync(path.join(__dirname, "fixtures", "battlelog-ranked.json"), "utf8"));
@@ -58,6 +59,77 @@ console.log("formScore");
     const unknown = scoreMember(maxed, null);
     assert.ok(idleProven.score < unknown.score,
       `proven-idle (${idleProven.score}) should rank below unknown (${unknown.score})`);
+  });
+}
+
+console.log("league tiers");
+{
+  test("tier names resolve to the game's own ladder order", () => {
+    assert.strictEqual(tierRank("Legend I"), 36);
+    assert.strictEqual(tierRank("Legend II"), 35);
+    assert.strictEqual(tierRank("Legend III"), 34);
+    assert.strictEqual(tierRank("Electro League 33"), 33);
+    assert.strictEqual(tierRank("Unranked"), 0);
+  });
+  test("numeric ids and objects resolve too", () => {
+    assert.strictEqual(tierRank(105000036), 36);
+    assert.strictEqual(tierRank({ id: 105000035 }), 35);
+    assert.strictEqual(tierRank({ name: "Legend III" }), 34);
+  });
+  test("unknown tiers are null, not zero", () => {
+    // Zero would read as Unranked and quietly score the player as if they were
+    // in the easiest league in the game.
+    assert.strictEqual(tierRank(null), null);
+    assert.strictEqual(tierRank("Nonsense League"), null);
+  });
+  test("par falls as the ladder rises", () => {
+    assert.ok(expectedAttackGain(36) < expectedAttackGain(35));
+    assert.ok(expectedAttackGain(35) < expectedAttackGain(34));
+    assert.ok(expectedAttackGain(34) < expectedAttackGain(30));
+  });
+  test("tier bonus only applies near the top", () => {
+    assert.strictEqual(tierBonus(36), 1);
+    assert.strictEqual(tierBonus(30), 0);
+    assert.strictEqual(tierBonus(10), 0);
+    assert.strictEqual(tierBonus(null), 0);
+  });
+}
+
+console.log("league-adjusted form");
+{
+  // The whole point of the tier model. Measured on one clan: Legend I averages
+  // +28.1 per attack with a 13% triple rate, while Dragon League averages +38.7
+  // with 87% triples — the same player pushed up the ladder posts far worse raw
+  // numbers because of the Battle Modifiers working against them.
+  const log = (n, stars, dest) => ({
+    items: Array.from({ length: n }, (_, i) => ({
+      battleType: "ranked", attack: true, stars, destructionPercentage: dest,
+      battleTimestamp: `2026081${i % 5}T${String(i % 24).padStart(2, "0")}0000.000Z`,
+    })),
+  });
+  const { summariseRanked } = require("../js/battlelog.js");
+
+  test("a Legend I attacker beats an easier-league one with the same raw numbers", () => {
+    const s = summariseRanked(log(12, 2, 80));
+    const legendI = formScore(s, "Legend I");
+    const dragon = formScore(s, "Dragon League 30");
+    assert.ok(legendI > dragon,
+      `Legend I (${legendI.toFixed(3)}) should beat Dragon League (${dragon.toFixed(3)}) on identical attacks`);
+  });
+
+  test("a strong Legend I average outscores a similar Dragon League average", () => {
+    // +30 avg in Legend I is above its ~28 par; +38 in Dragon League is below
+    // its ~39 par, despite being the bigger raw number.
+    const legendI = formScore(summariseRanked(log(16, 2, 92)), "Legend I");
+    const dragon = formScore(summariseRanked(log(16, 3, 100)), "Dragon League 30");
+    assert.ok(Number.isFinite(legendI) && Number.isFinite(dragon));
+    assert.ok(legendI > 0.5, `Legend I form was only ${legendI.toFixed(3)}`);
+  });
+
+  test("an unknown tier does not crash or zero the score", () => {
+    const s = summariseRanked(log(10, 2, 85));
+    const unknown = formScore(s, null);
+    assert.ok(unknown > 0 && unknown <= 1, `got ${unknown}`);
   });
 }
 
