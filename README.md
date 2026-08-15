@@ -92,9 +92,17 @@ only external check available, since the API itself never returns the number.
 
 ## CWL eligibility scoring
 
-`js/eligibility.js` ranks clan members on who should play Clan War League. It
-combines **form** (recent Ranked attacks, from the battle log) with **roster**
-(Town Hall, heroes, war stars), weighting form up to 65% as evidence accumulates.
+`js/eligibility.js` ranks clan members on who should play Clan War League, using
+**recent Ranked form only** — attacks used, trophies per attack, and triple rate.
+
+Town Hall, hero levels and war stars are deliberately **not** scored. They reward
+accumulation rather than current form, and would let a maxed account parked at a
+lower Town Hall farming war stars outrank someone who is genuinely attacking now.
+What predicts a good CWL attack is recent attacking.
+
+The cost is honest: a player with no readable battle log gets no score at all.
+They are listed as **unrated**, kept out of the suggested roster, and left for you
+to include by judgement — never scored on potential we cannot see.
 
 The important part is that form is measured **against the player's own league**.
 Ranked applies [Battle Modifiers](https://supercell.com/en/games/clashofclans/blog/news/balance-changes-4/)
@@ -119,10 +127,10 @@ skill, not the trophies their league happens to yield.
 Tier order comes from the game's own `GET /leaguetiers` — 37 rungs from Unranked
 to Legend I, where `id - 105000000` is the ladder position.
 
-Two cases are handled explicitly rather than silently: a player with no readable
-battle log is held at a ceiling instead of scored on capability alone, and a
-player whose log shows zero attacks scores below that ceiling. Proven inactivity
-is worse evidence than no evidence, and both are stated in the row.
+Two cases are handled explicitly rather than silently. A player with no readable
+battle log is unrated. A player whose log shows zero attacks scores 0 — and sorts
+*below* the unrated ones, because proven inactivity is worse evidence than no
+evidence: the unrated player might still turn up. Both are stated in the row.
 
 ```bash
 node test/eligibility.test.js

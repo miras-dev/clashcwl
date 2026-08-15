@@ -5,7 +5,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { rosterScore, formScore, scoreMember, rankClan,
+const { formScore, scoreMember, rankClan,
         tierRank, expectedAttackGain, tierBonus } = require("../js/eligibility.js");
 
 const rankedLog = JSON.parse(
@@ -19,19 +19,41 @@ function test(name, fn) {
 
 const maxed = { tag: "#A", name: "Maxed", thLevel: 18, heroSum: 380, warStars: 1200 };
 
-console.log("rosterScore");
+console.log("form only — no capability signals");
 {
-  // Regression: `Number(x) || 0 - 9` parses as `Number(x) || (0 - 9)`, so the
-  // -9 offset never applied and every TH from 9 to 18 scored identically.
-  test("Town Hall level actually changes the score", () => {
-    const low = rosterScore({ thLevel: 9, heroSum: 0, warStars: 0 });
-    const high = rosterScore({ thLevel: 18, heroSum: 0, warStars: 0 });
-    assert.ok(high > low, `TH18 (${high}) should outscore TH9 (${low})`);
+  // Town Hall, hero levels and war stars are deliberately not scored: they
+  // reward accumulation rather than current form, and would let a maxed account
+  // sitting at a lower Town Hall for war stars outrank an active attacker.
+  const log = (n, stars, dest) => ({
+    items: Array.from({ length: n }, (_, i) => ({
+      battleType: "ranked", attack: true, stars, destructionPercentage: dest,
+      battleTimestamp: `2026081${i % 5}T${String(i % 24).padStart(2, "0")}0000.000Z`,
+    })),
   });
-  test("a maxed player scores 1", () => assert.strictEqual(rosterScore(maxed), 1));
-  test("missing fields do not produce NaN", () => {
-    const s = rosterScore({});
-    assert.ok(Number.isFinite(s) && s >= 0, `got ${s}`);
+
+  test("a maxed idle player scores below an active weaker one", () => {
+    const idleMaxed = scoreMember(maxed, log(0, 0, 0));
+    const activeWeak = scoreMember(
+      { tag: "#B", name: "Small", thLevel: 13, heroSum: 120, warStars: 40, leagueTier: "Legend II" },
+      log(14, 2, 85));
+    assert.ok(activeWeak.score > idleMaxed.score,
+      `active TH13 (${activeWeak.score}) should beat idle maxed TH18 (${idleMaxed.score})`);
+  });
+
+  test("Town Hall and war stars do not move the score", () => {
+    const attacks = log(12, 2, 85);
+    const big = scoreMember({ ...maxed, leagueTier: "Legend II" }, attacks);
+    const small = scoreMember(
+      { tag: "#C", name: "Small", thLevel: 11, heroSum: 60, warStars: 5, leagueTier: "Legend II" },
+      attacks);
+    assert.strictEqual(big.score, small.score,
+      "identical attacks in the same league must score identically");
+  });
+
+  test("capability alone earns nothing", () => {
+    const m = scoreMember(maxed, null);
+    assert.strictEqual(m.score, 0);
+    assert.strictEqual(m.rated, false);
   });
 }
 
@@ -53,12 +75,17 @@ console.log("formScore");
 
   // Proven inactivity ranks BELOW an unknown player, which is deliberate: the
   // fixture player has 16 defenses and zero attacks, so we know they are not
-  // attacking. An unproven player might still turn up.
-  test("demonstrated inactivity ranks below an unknown player", () => {
-    const idleProven = scoreMember(maxed, rankedLog);   // 0 attacks, 16 defenses
-    const unknown = scoreMember(maxed, null);
-    assert.ok(idleProven.score < unknown.score,
-      `proven-idle (${idleProven.score}) should rank below unknown (${unknown.score})`);
+  // attacking. An unrated player might still turn up. Both score 0 now that
+  // capability is out of the model, so the distinction lives in the sort.
+  test("demonstrated inactivity sorts below an unrated player", () => {
+    const r = rankClan(
+      [{ tag: "#IDLE", name: "Idle", thLevel: 18, leagueTier: "Legend II" },
+       { tag: "#UNK", name: "Unknown", thLevel: 18, leagueTier: "Legend II" }],
+      [{ tag: "#IDLE", battlelog: rankedLog }, { tag: "#UNK", battlelog: null }]);
+    const idle = r.members.findIndex((m) => m.tag === "#IDLE");
+    const unknown = r.members.findIndex((m) => m.tag === "#UNK");
+    assert.ok(unknown < idle,
+      "an unrated player should sort above one we watched decline to attack");
   });
 }
 
@@ -137,12 +164,11 @@ console.log("scoreMember");
 {
   // Regression: an unproven maxed player used to score pure roster (100) and
   // outrank everyone who had demonstrably been attacking all week.
-  test("an unproven player cannot outrank a proven attacker", () => {
-    const unproven = scoreMember(maxed, null);
-    const proven = scoreMember(maxed, rankedLog);
-    assert.ok(unproven.score <= 80,
-      `unproven scored ${unproven.score}, should be held at or below 80`);
-    assert.ok(proven.score !== unproven.score, "evidence should change the score");
+  test("an unrated player scores nothing at all", () => {
+    const unrated = scoreMember(maxed, null);
+    assert.strictEqual(unrated.score, 0);
+    assert.strictEqual(unrated.rated, false);
+    assert.strictEqual(unrated.formScore, null);
   });
   test("zero attacks is called out in the reasons", () => {
     const m = scoreMember(maxed, rankedLog);   // fixture has 0 attacks, 16 defenses
@@ -153,7 +179,8 @@ console.log("scoreMember");
   test("no battle log is explained rather than silently penalised", () => {
     const m = scoreMember(maxed, null);
     assert.strictEqual(m.formScore, null);
-    assert.ok(m.reasons.some((r) => /roster only/i.test(r)));
+    assert.ok(m.reasons.some((r) => /unrated/i.test(r)),
+      `reasons were: ${JSON.stringify(m.reasons)}`);
   });
   test("war preference OUT is surfaced", () => {
     const m = scoreMember({ ...maxed, warPreference: "out" }, rankedLog);
@@ -193,8 +220,16 @@ console.log("rankClan");
   });
   test("suggested roster respects war size", () => {
     const many = Array.from({ length: 30 }, (_, i) => ({ ...maxed, tag: `#T${i}`, name: `P${i}` }));
-    const r = rankClan(many, [], { warSize: 15 });
+    const manyLogs = many.map((p) => ({ tag: p.tag, battlelog: rankedLog }));
+    const r = rankClan(many, manyLogs, { warSize: 15 });
     assert.strictEqual(r.suggested.length, 15);
+  });
+  test("unrated players are never suggested", () => {
+    // Suggesting someone we know nothing about would present a gap in the data
+    // as a judgement about the player.
+    const r = rankClan(players, logs, { warSize: 15 });
+    assert.ok(!r.suggested.includes("#B"), "an unrated player must not be suggested");
+    assert.strictEqual(r.unrated, 1);
   });
   test("missing logs are counted", () => {
     const r = rankClan(players, logs);

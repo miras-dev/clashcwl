@@ -1,16 +1,18 @@
 /* CWL eligibility scoring.
  *
- * Ranks clan members on how well they would perform in Clan War League. Two
- * kinds of evidence go in, and they are deliberately kept apart:
+ * Ranks clan members purely on FORM — what they have actually been doing in
+ * Ranked, from js/battlelog.js: attacks used, trophies earned per attack, and
+ * triple rate, each measured against their own league's par.
  *
- *   Form   — what the player has actually been doing in Ranked this week, from
- *            js/battlelog.js. Attacks used, trophies earned per attack, triples.
- *   Roster — what the player is capable of: Town Hall, heroes, war stars.
+ * Town Hall, hero levels and war stars are deliberately NOT scored. They reward
+ * accumulation rather than current form, and they let a maxed account that sits
+ * at a lower Town Hall farming war stars outrank someone who is genuinely
+ * attacking now. What predicts a good CWL attack is recent attacking, not a
+ * lifetime total.
  *
- * Form is weighted higher because a maxed TH18 who never attacks is worth less
- * in CWL than an active TH16 who three-stars. But form is only trustworthy when
- * there is enough of it, so a player with a thin battle log leans on roster and
- * is flagged, never silently ranked low — see `confidence`.
+ * The cost of that choice is honest: a player with no readable battle log gets
+ * no score at all. They are listed as unrated and sorted last, not judged on
+ * potential we cannot see — picking them is a manual call.
  */
 (function (root) {
 "use strict";
@@ -123,16 +125,6 @@ function clamp01(n) {
   return Math.max(0, Math.min(1, n));
 }
 
-/* Capability, 0-1. Same shape as the clan-level roster model in cwl-group.js:
-   TH is the backbone, heroes separate players inside a TH, war stars reward
-   proven war experience. */
-function rosterScore(player) {
-  const th = clamp01(((Number(player.thLevel) || 0) - 9) / 9);     // TH9 → TH18
-  const heroes = clamp01((Number(player.heroSum) || 0) / 380);
-  const stars = clamp01((Number(player.warStars) || 0) / 1200);
-  return th * 0.55 + heroes * 0.25 + stars * 0.20;
-}
-
 /* Recent ranked form, 0-1, or null when there is no battle log at all.
  *
  * Activity is how much of the expected attack load the player actually used;
@@ -187,34 +179,24 @@ function formConfidence(summary) {
    API response for that member, or null if the call failed. */
 function scoreMember(player, battlelog) {
   const summary = summariseRanked(battlelog);
-  const roster = rosterScore(player);
   const rank = tierRank(player.leagueTier);
   const form = formScore(summary, player.leagueTier);
   const confidence = formConfidence(summary);
 
-  // As confidence rises, form takes over — up to 65% of the final number, since
-  // CWL is won by people who turn up, not by the biggest bases.
-  //
-  // Unproven players are held at a ceiling rather than scored on capability
-  // alone. Otherwise a maxed TH18 with no battle log outranks every attacker in
-  // the clan on potential we have no evidence for, which is precisely backwards
-  // for picking a roster. The ceiling keeps them visible and pickable without
-  // letting them displace people who have demonstrably been attacking.
-  const UNPROVEN_CEILING = 0.80;
-  const formWeight = form == null ? 0 : 0.65 * confidence;
-  let score = form == null
-    ? roster * UNPROVEN_CEILING
-    : (form * formWeight + roster * (1 - formWeight));
+  // No battle log means no score. There is nothing to fall back on now that
+  // Town Hall and war stars are out, and inventing a number from capability is
+  // exactly what this model refuses to do — see the file header.
+  const rated = form != null;
 
-  // Partial evidence is scaled the same way, in proportion to how thin it is.
-  if (form != null && confidence < 1) {
-    score *= UNPROVEN_CEILING + (1 - UNPROVEN_CEILING) * confidence;
-  }
-  score *= 100;
+  // Thin evidence is discounted rather than trusted at face value: a player with
+  // two attacks in one day should not sit above someone with sixteen over five,
+  // even if those two went well. Never below half, so a real attacker with a
+  // truncated window is not buried by a measurement limit.
+  let score = rated ? form * (0.5 + 0.5 * confidence) * 100 : 0;
 
   const par = expectedAttackGain(rank);
   const reasons = [];
-  if (form == null) reasons.push("No ranked battles in the log — scored on roster only");
+  if (!rated) reasons.push("No ranked battles in the log — unrated, decide manually");
   else if (confidence < 0.5) reasons.push("Thin battle log — form is a weak signal here");
   if (summary.hasData && !summary.attackCount) reasons.push("Attacked zero times this window");
   // Judged against the tier's par, so a +30 in Legend I reads as the strong
@@ -227,7 +209,6 @@ function scoreMember(player, battlelog) {
   if (rank >= 36) reasons.push("Legend I — the harshest battle modifiers in the game");
   else if (rank >= 35) reasons.push("Legend II — heavy battle modifiers");
   if (summary.tripleRate === 1 && summary.attackCount >= 5) reasons.push("Triples every attack");
-  if ((Number(player.warStars) || 0) >= 1000) reasons.push("Deep war experience");
   if (player.warPreference === "out") reasons.push("War preference is OUT");
 
   return {
@@ -241,7 +222,7 @@ function scoreMember(player, battlelog) {
     tierRank: rank,
     expectedGain: par,
     score: Math.round(score),
-    rosterScore: Math.round(roster * 100),
+    rated,
     formScore: form == null ? null : Math.round(form * 100),
     confidence,
     summary,
@@ -261,19 +242,29 @@ function rankClan(players, battlelogs, { warSize = 15 } = {}) {
 
   const scored = (players || [])
     .map((p) => scoreMember(p, logsByTag.get(p.tag) || null))
-    .sort((a, b) => b.score - a.score);
+    // Score first, then rated ahead of unrated on a tie. Both a proven-idle
+    // player and an unrated one sit at 0, but they are not equivalent: one is a
+    // gap in our data, the other is a player we watched decline to attack. The
+    // unrated player might still turn up, so they sort above.
+    .sort((a, b) => (b.score - a.score) || (Number(a.rated) - Number(b.rated)));
 
   scored.forEach((m, i) => { m.rank = i + 1; });
 
   return {
     members: scored,
-    // Suggested roster: the top warSize who have not opted out of war.
-    suggested: scored.filter((m) => m.warPreference !== "out").slice(0, warSize).map((m) => m.tag),
+    // Suggested roster: the top warSize rated players who have not opted out.
+    // Unrated players are excluded rather than filling the tail — suggesting
+    // someone we know nothing about would misrepresent a gap as a judgement.
+    suggested: scored
+      .filter((m) => m.rated && m.warPreference !== "out")
+      .slice(0, warSize)
+      .map((m) => m.tag),
     missingLogs: scored.filter((m) => !m.summary.hasData).length,
+    unrated: scored.filter((m) => !m.rated).length,
   };
 }
 
-const api = { rosterScore, formScore, formConfidence, scoreMember, rankClan,
+const api = { formScore, formConfidence, scoreMember, rankClan,
               tierRank, expectedAttackGain, tierBonus };
 
 root.Eligibility = api;

@@ -557,20 +557,25 @@ function renderEligibility() {
           ? ` · +${s.avgAttackGain.toFixed(0)} vs par ${m.expectedGain}` : ""}`
       : "no log";
 
+    // An unrated player has no score to show. A bare 0 would read as a
+    // judgement rather than a gap in the data.
+    const scoreCell = m.rated
+      ? `<strong style="color:${strengthColor(m.score)}">${m.score}</strong>`
+      : `<span class="muted small">unrated</span>`;
+
     return `<tr style="${inRoster ? "" : "opacity:.55"}">
       <td class="muted">${m.rank}</td>
       <td><strong>${escG(m.name)}</strong>
         <div class="muted small">${escG(m.tag)}${m.leagueTier ? " · " + escG(m.leagueTier) : ""}</div></td>
       <td><span class="player-chip"><span class="th">TH${m.thLevel || "?"}</span></span></td>
-      <td><strong style="color:${strengthColor(m.score)}">${m.score}</strong></td>
+      <td>${scoreCell}</td>
       <td>${formCell}</td>
-      <td class="muted small">${m.rosterScore}</td>
       <td class="muted small">${escG(attacks)}</td>
       <td class="small ${conf.cls}">${conf.text}</td>
       <td class="muted small">${s.windowDays ? s.windowDays.toFixed(1) + "d" : "—"}</td>
     </tr>` + (m.reasons.length
       ? `<tr style="${inRoster ? "" : "opacity:.55"}"><td></td>
-           <td colspan="8" class="muted small" style="padding-top:0; border-top:none">
+           <td colspan="7" class="muted small" style="padding-top:0; border-top:none">
              ${m.reasons.map(escG).join(" · ")}</td></tr>`
       : "");
   }).join("");
@@ -585,12 +590,13 @@ function renderEligibility() {
          cached, so the second pass gets further.</p>`
     : "";
 
-  const warn = eligibility.missingLogs
+  const warn = eligibility.unrated
     ? `<p class="muted small" style="margin-top:10px">
-         ${eligibility.missingLogs} player${eligibility.missingLogs === 1 ? "" : "s"} had no
-         readable battle log and ${eligibility.missingLogs === 1 ? "was" : "were"} scored on
-         roster strength alone. The API returns an error for some accounts; it is not a sign
-         they are inactive.</p>`
+         ${eligibility.unrated} player${eligibility.unrated === 1 ? " has" : "s have"} no
+         readable battle log and ${eligibility.unrated === 1 ? "is" : "are"} listed as
+         <strong>unrated</strong> rather than scored — the API returns an error for some
+         accounts, and that is not evidence they are inactive. They are left out of the
+         suggested ${state.warSize}; include them by judgement if you know they play.</p>`
     : "";
 
   $g("eligibilityList").innerHTML = `
@@ -598,13 +604,17 @@ function renderEligibility() {
       ${state.warSize} — dimmed rows fall outside it. Form covers only the last few days:
       the game keeps a rolling window of about 50 battles, so an active player's history
       is shorter than a casual one's.
+      <br />Scored on <strong>ranked form only</strong> — attacks used and how they went.
+      Town Hall, hero levels and war stars are deliberately not counted: they reward
+      accumulation, not current form, and would let a maxed account sitting at a lower Town
+      Hall outrank someone who is actually attacking.
       <br />Attacks are judged against <strong>their own league's par</strong>, not raw
       trophies. Ranked Battle Modifiers buff defences and penalise attacking heroes as you
       climb, so a +30 average in Legend I is a stronger result than +38 several tiers below
       it — this clan averages 87% triples in Dragon League against 13% in Legend I.</p>
     <table style="margin-top:10px"><thead><tr>
       <th>#</th><th>Player</th><th>TH</th><th>Score</th><th>Form</th>
-      <th>Roster</th><th>Ranked attacks vs league par</th><th>Evidence</th><th>Window</th>
+      <th>Ranked attacks vs league par</th><th>Evidence</th><th>Window</th>
     </tr></thead><tbody>${rows}</tbody></table>${truncWarn}${warn}`;
 }
 
