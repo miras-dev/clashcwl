@@ -578,7 +578,7 @@ function battleLogPanel(summary) {
 
   const stars = (n) => `${"★".repeat(n)}${"☆".repeat(3 - n)}`;
   const row = (b) => `<div class="bl-row">
-    <span class="bl-troph${b.trophyChange > 0 ? " up" : ""}">${b.trophyChange > 0 ? "+" : ""}${b.trophyChange}</span>
+    <span class="bl-troph${b.trophyChange > 0 ? " up" : ""}">${b.trophyChange >= 0 ? "+" : ""}${b.trophyChange}</span>
     <span class="bl-stars${b.stars === 3 ? " full" : ""}">${stars(b.stars)}</span>
     <span class="bl-dest">${Math.round(b.destruction)}%</span>
     <span class="bl-when muted">${escG(agoLabel(b.timestamp))}</span>
