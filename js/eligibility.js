@@ -189,6 +189,110 @@ function formConfidence(summary) {
   return Math.max(byAttacks, byPresence);
 }
 
+/* A verdict and a written case for it.
+ *
+ * The score alone does not tell you whether to field someone: 55 might be a
+ * strong Legend I attacker with only five attacks on record, or a Dragon League
+ * player coasting well below par. Those want opposite decisions, so the verdict
+ * names the decision and the rationale argues it in plain language.
+ *
+ *   yes   — field them, the record supports it
+ *   maybe — plausible, but something is unresolved: too little data, or form
+ *           that is real but middling
+ *   no    — the record argues against it, or there is no record at all
+ *
+ * Written as sentences rather than tags because the interesting cases are the
+ * ones needing a "because": a low score that is actually fine, or a high one
+ * resting on three attacks. */
+function explain({ player, summary, rank, par, score, form, confidence, rated }) {
+  const league = player.leagueTier || "an unknown league";
+  const atk = summary.attackCount;
+  const avg = summary.avgAttackGain;
+  const parts = [];
+
+  // No battle log at all. Distinct from a player who has one showing nothing:
+  // this is our blind spot, not their inactivity, and the wording has to keep
+  // the two apart or an API failure reads as a lazy player.
+  if (!rated) {
+    return {
+      verdict: "no",
+      rationale: `No ranked battles could be read for this player, so there is nothing to judge. `
+        + `The game's API returns an error for some accounts — that is a gap on our side, not `
+        + `evidence they are inactive. If you know they play, field them on your own judgement.`,
+    };
+  }
+
+  // A log that exists and shows no attacks is the strongest negative we have.
+  if (!atk) {
+    const def = summary.defenseCount;
+    return {
+      verdict: "no",
+      rationale: `Has not attacked once in the last ${summary.windowDays.toFixed(1)} days`
+        + (def ? `, despite being attacked ${def} time${def === 1 ? "" : "s"} in that window — `
+               + `so they are online and being farmed, just not hitting back. ` : ". ")
+        + `CWL is decided by attacks used. Someone who is not using their ranked attacks is `
+        + `unlikely to use their war attack either.`,
+    };
+  }
+
+  // How they are performing, relative to their own league rather than raw.
+  const ratio = avg / par;
+  if (ratio >= 1.02) {
+    parts.push(`Averaging +${avg.toFixed(0)} a hit against a ${league} par of about +${par}, `
+      + `so they are beating what that league normally yields`);
+  } else if (ratio >= 0.95) {
+    parts.push(`Averaging +${avg.toFixed(0)} a hit, right on par for ${league}`);
+  } else {
+    parts.push(`Averaging +${avg.toFixed(0)} a hit against a ${league} par of about +${par}, `
+      + `so they are running below what that league normally yields`);
+  }
+
+  // Legend tiers carry modifiers that make identical attacks score lower, which
+  // is exactly the context a raw average hides. Only worth saying when they are
+  // holding their own — telling someone below par that their league is hard
+  // reads as an excuse being made for them.
+  if (ratio >= 0.95) {
+    if (rank >= 36) {
+      parts.push(`Legend I carries the harshest battle modifiers in the game — defences and `
+        + `defending heroes are buffed while their own heroes are weakened — so those numbers `
+        + `are worth more than the same figures lower down`);
+    } else if (rank >= 35) {
+      parts.push(`Legend II carries heavy battle modifiers, so the raw number understates it`);
+    }
+  }
+
+  if (summary.tripleRate === 1 && atk >= 5) {
+    parts.push(`Every single attack was a triple`);
+  } else if (summary.tripleRate >= 0.6 && atk >= 5) {
+    parts.push(`${Math.round(summary.tripleRate * 100)}% of their attacks were triples`);
+  }
+
+  // Volume decides how much the above is worth, so it comes last and drives the
+  // verdict more than the averages do.
+  let verdict;
+  if (confidence >= 0.8) {
+    parts.push(`Across ${atk} attacks, that is a settled picture rather than a hot streak`);
+    verdict = score >= 70 ? "yes" : score >= 45 ? "maybe" : "no";
+  } else {
+    parts.push(`Only ${atk} attack${atk === 1 ? "" : "s"} on record though, so treat this as `
+      + `indicative rather than proven — one good or bad session would move it a long way`);
+    // Below full confidence the score is already discounted for thin evidence,
+    // so judging it against the same thresholds punishes the shortage twice.
+    // Form is what they actually did; volume decides how far to trust it, and it
+    // has had its say in the score. A player three-starring every attack is a
+    // "maybe" on five hits, never a "no".
+    verdict = form >= 0.6 ? "maybe" : "no";
+  }
+
+  const closing = verdict === "yes"
+    ? " Worth a place in the roster."
+    : verdict === "maybe"
+      ? " Playable, but there are safer picks if you are short of slots."
+      : " Hard to justify a slot on this record.";
+
+  return { verdict, rationale: parts.join(". ") + "." + closing };
+}
+
 /* Score one member. `player` is a clan-deep player row; `battlelog` is the raw
    API response for that member, or null if the call failed. */
 function scoreMember(player, battlelog) {
@@ -209,24 +313,13 @@ function scoreMember(player, battlelog) {
   let score = rated ? form * (0.5 + 0.5 * confidence) * 100 : 0;
 
   const par = expectedAttackGain(rank);
-  const reasons = [];
-  if (!rated) reasons.push("No ranked battles in the log — unrated, decide manually");
-  else if (confidence < 0.5) reasons.push("Thin battle log — form is a weak signal here");
-  if (summary.hasData && !summary.attackCount) reasons.push("Attacked zero times this window");
-  // Judged against the tier's par, so a +30 in Legend I reads as the strong
-  // result it is and a +38 in an unmodified league is not flattered.
-  if (summary.attackCount >= 3 && summary.avgAttackGain >= par * 1.02) {
-    reasons.push(rank >= 34
-      ? `Beating ${player.leagueTier} par (+${summary.avgAttackGain.toFixed(0)} vs ~${par})`
-      : "Above par for their league");
-  }
-  if (rank >= 36) reasons.push("Legend I — the harshest battle modifiers in the game");
-  else if (rank >= 35) reasons.push("Legend II — heavy battle modifiers");
-  if (summary.tripleRate === 1 && summary.attackCount >= 5) reasons.push("Triples every attack");
-  // War preference is deliberately not surfaced here: for CWL the whole clan
-  // signs up regardless of the in/out flag, which governs regular wars.
+  const { verdict, rationale } = explain({
+    player, summary, rank, par, score, form, confidence, rated,
+  });
 
   return {
+    verdict,
+    rationale,
     tag: player.tag,
     name: player.name,
     thLevel: player.thLevel,
@@ -241,7 +334,6 @@ function scoreMember(player, battlelog) {
     formScore: form == null ? null : Math.round(form * 100),
     confidence,
     summary,
-    reasons,
   };
 }
 

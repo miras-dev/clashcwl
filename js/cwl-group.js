@@ -526,6 +526,14 @@ function renderRoster() {
    stale "who should play" list is worse than no list.                        */
 let eligibility = null;
 
+/* The call on each player, colour-coded. Green field them, amber playable but
+   unresolved, red hard to justify. Set by explain() in js/eligibility.js. */
+const VERDICT = {
+  yes:   { label: "Pick",   color: "var(--green)" },
+  maybe: { label: "Maybe",  color: "var(--gold)" },
+  no:    { label: "Avoid",  color: "var(--red)" },
+};
+
 /* Confidence is driven by attacks observed, not by how long the window is — a
    busy player fills the game's fixed battle buffer faster and so shows a
    SHORTER window, which is the opposite of weak evidence. */
@@ -566,6 +574,11 @@ function renderEligibility() {
       ? `<strong style="color:${strengthColor(m.score)}">${m.score}</strong>`
       : `<span class="muted small">unrated</span>`;
 
+    // The verdict drives the colour, not the score: a 55 can be a strong Legend I
+    // attacker with few attacks on record, or someone coasting below par, and
+    // those want opposite decisions.
+    const v = VERDICT[m.verdict] || VERDICT.no;
+
     return `<tr style="${inRoster ? "" : "opacity:.55"}">
       <td class="muted">${m.rank}</td>
       <td><strong>${escG(m.name)}</strong>
@@ -576,11 +589,16 @@ function renderEligibility() {
       <td class="muted small">${escG(attacks)}</td>
       <td class="small ${conf.cls}">${conf.text}</td>
       <td class="muted small">${s.windowDays ? s.windowDays.toFixed(1) + "d" : "—"}</td>
-    </tr>` + (m.reasons.length
-      ? `<tr style="${inRoster ? "" : "opacity:.55"}"><td></td>
-           <td colspan="7" class="muted small" style="padding-top:0; border-top:none">
-             ${m.reasons.map(escG).join(" · ")}</td></tr>`
-      : "");
+    </tr>
+    <tr style="${inRoster ? "" : "opacity:.55"}">
+      <td></td>
+      <td colspan="7" class="small" style="padding-top:0; border-top:none">
+        <div style="border-left:3px solid ${v.color}; padding-left:10px">
+          <strong style="color:${v.color}">${v.label}</strong>
+          <span class="muted"> — ${escG(m.rationale)}</span>
+        </div>
+      </td>
+    </tr>`;
   }).join("");
 
   // Which data the ranking is standing on. Without this the window column looks
@@ -653,6 +671,24 @@ function glossaryHtml() {
       actually used and how they went. Town Hall, hero levels and war stars are deliberately
       not counted — they reward accumulation rather than current form, and would let a maxed
       account parked at a lower Town Hall outrank someone who is genuinely attacking now.</p>
+
+      <h4 style="margin:14px 0 4px">Pick / Maybe / Avoid <span class="muted small">— the call under each row</span></h4>
+      <p class="muted">The score alone does not settle whether to field someone. A 55 might be
+      a strong Legend I attacker with only five hits on record, or a Dragon League player
+      coasting well below par — opposite decisions from the same number. So each row carries
+      a verdict and the case for it:</p>
+      <table style="margin:8px 0"><thead><tr><th>Verdict</th><th>Means</th></tr></thead><tbody>
+        <tr><td><strong style="color:var(--green)">Pick</strong></td>
+            <td class="muted">Enough attacks on record, performing at or above their league's par</td></tr>
+        <tr><td><strong style="color:var(--gold)">Maybe</strong></td>
+            <td class="muted">Playable, but something is unresolved — too few attacks to be sure,
+            or real activity at middling quality</td></tr>
+        <tr><td><strong style="color:var(--red)">Avoid</strong></td>
+            <td class="muted">Not attacking, barely attacking, or no readable record at all</td></tr>
+      </tbody></table>
+      <p class="muted">Strong form on thin evidence never drops below <strong>Maybe</strong>:
+      the score has already been discounted for low volume, so judging it against the same
+      thresholds again would penalise the shortage twice.</p>
 
       <h4 style="margin:14px 0 4px">Score <span class="muted small">— the ranking number, 0-100</span></h4>
       <p class="muted">Form, discounted by how much evidence stands behind it:</p>

@@ -211,25 +211,85 @@ console.log("scoreMember");
     assert.strictEqual(unrated.rated, false);
     assert.strictEqual(unrated.formScore, null);
   });
-  test("zero attacks is called out in the reasons", () => {
+  test("zero attacks is argued, not just scored", () => {
     const m = scoreMember(maxed, rankedLog);   // fixture has 0 attacks, 16 defenses
-    assert.strictEqual(m.attackCountIsZero, undefined);
-    assert.ok(m.reasons.some((r) => /zero times/i.test(r)),
-      `reasons were: ${JSON.stringify(m.reasons)}`);
+    assert.strictEqual(m.verdict, "no");
+    assert.match(m.rationale, /not attacked once/i);
+    // The defenses are the point: they prove the player was online and chose not
+    // to hit back, which is far stronger than simply having no attacks logged.
+    assert.match(m.rationale, /16 times/);
   });
-  test("no battle log is explained rather than silently penalised", () => {
+  test("no battle log reads as a gap in our data, not a lazy player", () => {
     const m = scoreMember(maxed, null);
     assert.strictEqual(m.formScore, null);
-    assert.ok(m.reasons.some((r) => /unrated/i.test(r)),
-      `reasons were: ${JSON.stringify(m.reasons)}`);
+    assert.strictEqual(m.verdict, "no");
+    assert.match(m.rationale, /nothing to judge/i);
+    assert.match(m.rationale, /gap on our side/i);
   });
   test("war preference is ignored — the whole clan plays CWL", () => {
     // The in/out flag governs regular wars, not CWL, where everyone signs up.
     const out = scoreMember({ ...maxed, warPreference: "out" }, rankedLog);
     const inWar = scoreMember({ ...maxed, warPreference: "in" }, rankedLog);
     assert.strictEqual(out.score, inWar.score);
-    assert.ok(!out.reasons.some((r) => /OUT/.test(r)),
-      `reasons should not mention OUT: ${JSON.stringify(out.reasons)}`);
+    assert.ok(!/\bOUT\b/.test(out.rationale),
+      `rationale should not mention OUT: ${out.rationale}`);
+  });
+}
+
+console.log("verdicts");
+{
+  const log = (n, stars, dest, tier) => scoreMember(
+    { tag: "#V", name: "V", leagueTier: tier || "Legend III" },
+    { items: Array.from({ length: n }, (_, i) => ({
+      battleType: "ranked", attack: true, stars, destructionPercentage: dest,
+      battleTimestamp: `2026081${i % 5}T${String(i % 24).padStart(2, "0")}0000.000Z`,
+    })) });
+
+  test("a strong, well-evidenced attacker is a pick", () => {
+    const m = log(14, 3, 100);
+    assert.strictEqual(m.verdict, "yes");
+    assert.match(m.rationale, /Worth a place/i);
+  });
+
+  // Regression: judging thin-evidence players against the full-confidence score
+  // thresholds punished them twice, since the score is already discounted for
+  // low volume. A player three-starring every attack came out "avoid".
+  test("excellent form on few attacks is a maybe, never an avoid", () => {
+    const m = log(5, 3, 100);
+    assert.strictEqual(m.verdict, "maybe");
+    assert.match(m.rationale, /Only 5 attacks/i);
+  });
+
+  test("middling form on plenty of attacks is a maybe", () => {
+    // Weak attacks but genuine activity — 14 hits at ~3/day. Turning up counts
+    // for something, so this is not an outright avoid.
+    const m = log(14, 1, 30);
+    assert.strictEqual(m.verdict, "maybe");
+  });
+
+  test("barely attacking at all is an avoid", () => {
+    const m = log(2, 1, 20);
+    assert.strictEqual(m.verdict, "no");
+    assert.match(m.rationale, /Hard to justify/i);
+  });
+
+  // Regression: the league-difficulty note was appended regardless of how the
+  // player was doing, so a below-par Legend I attacker got a sentence about the
+  // harsh modifiers that read as an excuse being made for them.
+  test("league difficulty is only cited when the player is holding their own", () => {
+    const below = log(14, 1, 20, "Legend I");
+    assert.ok(!/harshest battle modifiers/.test(below.rationale),
+      `should not excuse below-par form: ${below.rationale}`);
+    const above = log(14, 3, 100, "Legend I");
+    assert.match(above.rationale, /harshest battle modifiers/);
+  });
+
+  test("every rationale is a complete sentence", () => {
+    for (const m of [log(14, 3, 100), log(5, 2, 80), log(14, 1, 30), scoreMember(maxed, null)]) {
+      assert.ok(m.rationale.length > 40, `too short: ${m.rationale}`);
+      assert.match(m.rationale, /\.$/, `should end in a full stop: ${m.rationale}`);
+      assert.ok(!/\.\s+and\b/.test(m.rationale), `broken clause join: ${m.rationale}`);
+    }
   });
 }
 
