@@ -365,10 +365,23 @@ console.log("rankClan");
     { tag: "#B", name: "Idle", thLevel: 18, heroSum: 380, warStars: 1200 },
     { tag: "#C", name: "OptedOut", thLevel: 18, heroSum: 380, warStars: 1200, warPreference: "out" },
   ];
+  // The rankedLog fixture is a real response with 16 defenses and ZERO attacks,
+  // which is exactly what the tag-join test needs. Suggestion tests need a
+  // player who actually attacks, since a zero-attack player is never suggested
+  // whatever their league or war preference.
+  const attacking = { items: Array.from({ length: 12 }, (_, i) => ({
+    battleType: "ranked", attack: true, stars: 3, destructionPercentage: 100,
+    battleTimestamp: `2026081${i % 5}T${String(i % 24).padStart(2, "0")}0000.000Z` })) };
+
   const logs = [
     { tag: "#A", battlelog: rankedLog },
     { tag: "#B", battlelog: null },
     { tag: "#C", battlelog: rankedLog },
+  ];
+  const attackingLogs = [
+    { tag: "#A", battlelog: attacking },
+    { tag: "#B", battlelog: null },
+    { tag: "#C", battlelog: attacking },
   ];
 
   test("battle logs join on tag, not array position", () => {
@@ -399,7 +412,7 @@ console.log("rankClan");
   });
   test("opted-out players are still eligible for CWL", () => {
     // Everyone in the clan plays CWL; the in/out flag is for regular wars.
-    const r = rankClan(players, logs, { warSize: 15 });
+    const r = rankClan(players, attackingLogs, { warSize: 15 });
     assert.ok(r.suggested.includes("#C"), "an OUT player should still be suggested");
   });
 
@@ -415,14 +428,21 @@ console.log("rankClan");
   });
   test("suggested roster respects war size", () => {
     const many = Array.from({ length: 30 }, (_, i) => ({ ...maxed, tag: `#T${i}`, name: `P${i}` }));
-    const manyLogs = many.map((p) => ({ tag: p.tag, battlelog: rankedLog }));
+    const manyLogs = many.map((p) => ({ tag: p.tag, battlelog: attacking }));
     const r = rankClan(many, manyLogs, { warSize: 15 });
     assert.strictEqual(r.suggested.length, 15);
+  });
+  test("a player with defences but no attacks is never suggested", () => {
+    // rankedLog is a real response with 16 defences and zero attacks. Being
+    // attacked proves someone is online, not that they will use their own hit.
+    const r = rankClan(players, logs, { warSize: 15 });
+    assert.deepStrictEqual(r.suggested, [],
+      "nobody in this fixture has attacked, so nobody should be suggested");
   });
   test("unrated players are never suggested", () => {
     // Suggesting someone we know nothing about would present a gap in the data
     // as a judgement about the player.
-    const r = rankClan(players, logs, { warSize: 15 });
+    const r = rankClan(players, attackingLogs, { warSize: 15 });
     assert.ok(!r.suggested.includes("#B"), "an unrated player must not be suggested");
     assert.strictEqual(r.unrated, 1);
   });
