@@ -58,6 +58,38 @@ node server.js                                                  # → http://loc
 
 Without the key the server still serves the app and the page falls back to manual entry.
 
+## Ranked battle logs
+
+`GET /players/{tag}/battlelog` returns a player's recent battles including their
+Ranked/Legend attacks and defenses — stars, destruction and opponent per battle.
+**It is not in the published Swagger docs**, but it is live on the official API and
+answers with a normal key. Being undocumented, it is unversioned and could change
+without notice, so everything that knows its shape is confined to `js/battlelog.js`.
+
+Two things the endpoint does not do for you:
+
+- `trophyChange` comes back `null` on every row. The trophy delta is derived from
+  stars + destruction with the game's own formula, ported from
+  [ClashPerk](https://github.com/clashperk/clashperk) (MIT).
+- The log is a rolling buffer of ~50 battles of **all** types mixed together, not a
+  time window. An active player's ranked history can fall off the end in under four
+  days. Read `windowStart`/`windowEnd` off the summary rather than assuming a period.
+
+Legend I players return `battleType: "legend"`; Legend II/III and below return
+`"ranked"`. Both must be read, or whole tiers silently vanish. Some accounts return
+HTTP 500 reproducibly, so per-player failure is normal and never sinks a clan batch.
+
+Endpoints: `/api/battlelog?tag=` for one player, `/api/clan-battlelogs?tag=` for a
+whole clan (batched in waves, ~20s for 40 members, cached for 10 minutes).
+
+```bash
+node test/battlelog.test.js
+```
+
+The test fixtures are real API responses, and the expected trophy values were read
+off ClashPerk's `/legend days` output for the same player at the same moment — the
+only external check available, since the API itself never returns the number.
+
 ## Assets & ID mapping
 
 `assets/` holds 168 entity icons (heroes, equipment, troops, spells, sieges, pets,

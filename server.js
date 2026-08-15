@@ -234,10 +234,72 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Ranked/Legend battle logs for a whole clan, batched server-side.
+    //
+    // /players/{tag}/battlelog is one call per player, so a 50-member clan is 50
+    // calls. Waves + the shared cache keep that within the rate limit. Individual
+    // players legitimately fail (HTTP 500 is reproducible for some accounts), so a
+    // failure yields battlelog: null for that member rather than sinking the batch.
+    if (url.pathname === "/api/clan-battlelogs") {
+      const tag = (url.searchParams.get("tag") || "").trim().toUpperCase().replace(/^#/, "");
+      if (!tag) { res.writeHead(400); res.end(JSON.stringify({ error: "bad_request" })); return; }
+
+      const cacheKey = `clan-battlelogs-${tag}`;
+      const cached = getCached(cacheKey);
+      if (cached) { res.end(JSON.stringify(cached)); return; }
+
+      try {
+        const clanRes = await cocGet(`/clans/%23${encodeURIComponent(tag)}`);
+        if (clanRes.status !== 200) { res.writeHead(clanRes.status); res.end(JSON.stringify(clanRes.json)); return; }
+        const list = clanRes.json.memberList || [];
+
+        // allSettled, not all: a single timeout must not discard the whole clan's
+        // work. One retry, because timeouts here are transient far more often
+        // than they are a real failure for that player.
+        const fetchOne = async (m) => {
+          const memberTag = encodeURIComponent(m.tag.replace(/^#/, ""));
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const r = await cocGet(`/players/%23${memberTag}/battlelog`);
+              if (r.status === 200) return { tag: m.tag, name: m.name, battlelog: r.json, error: null };
+              // A non-200 is the API's verdict, not a transient fault — don't retry it.
+              return { tag: m.tag, name: m.name, battlelog: null, error: `HTTP ${r.status}` };
+            } catch (e) {
+              if (attempt === 1) return { tag: m.tag, name: m.name, battlelog: null, error: e.message };
+            }
+          }
+        };
+
+        const members = [];
+        const WAVE = 8;
+        for (let i = 0; i < list.length; i += WAVE) {
+          const wave = await Promise.allSettled(list.slice(i, i + WAVE).map(fetchOne));
+          members.push(...wave.map((r, j) => r.status === "fulfilled" ? r.value : {
+            tag: list[i + j].tag, name: list[i + j].name, battlelog: null,
+            error: r.reason ? String(r.reason.message || r.reason) : "unknown",
+          }));
+        }
+
+        const responseBody = {
+          tag: clanRes.json.tag, name: clanRes.json.name,
+          fetchedAt: new Date().toISOString(),
+          members,
+        };
+        setCached(cacheKey, responseBody);
+        res.end(JSON.stringify(responseBody));
+      } catch (e) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: "upstream", message: e.message }));
+      }
+      return;
+    }
+
     try {
       let apiPath = null;
       const tag = (url.searchParams.get("tag") || "").trim().toUpperCase().replace(/^#/, "");
       if (url.pathname === "/api/clan" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}`;
+      // Undocumented but live on the official API — see js/battlelog.js.
+      else if (url.pathname === "/api/battlelog" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}/battlelog`;
       else if (url.pathname === "/api/clan-members" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/members`;
       else if (url.pathname === "/api/player" && tag) apiPath = `/players/%23${encodeURIComponent(tag)}`;
       else if (url.pathname === "/api/warlog" && tag) apiPath = `/clans/%23${encodeURIComponent(tag)}/warlog?limit=20`;

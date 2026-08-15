@@ -1,0 +1,223 @@
+{
+  "_mock": "GET /players/%23L0VGRY228 — shape verified against the live API, Aug 2026. Values fabricated; structure is real. Note: legendStatistics is ABSENT post-Ranked-rework; leagueTier replaces it. troops/spells trimmed to a representative sample.",
+  "tag": "#L0VGRY228",
+  "name": "DaisyMoonToNoon",
+  "townHallLevel": 18,
+  "expLevel": 233,
+  "trophies": 4712,
+  "bestTrophies": 5242,
+  "warStars": 1244,
+  "attackWins": 6,
+  "defenseWins": 19,
+  "builderHallLevel": 10,
+  "builderBaseTrophies": 4582,
+  "bestBuilderBaseTrophies": 4603,
+  "role": "admin",
+  "warPreference": "in",
+  "donations": 858,
+  "donationsReceived": 2398,
+  "clanCapitalContributions": 4203926,
+  "clan": {
+    "tag": "#2L92V9CYP",
+    "name": "Sumkindofwonder",
+    "clanLevel": 25,
+    "badgeUrls": {
+      "small": "https://api-assets.clashofclans.com/badges/70/baX-iItLCBOk1Vhfvm2Q_2AthX25cK-g_3dHGkJCkJk.png",
+      "large": "https://api-assets.clashofclans.com/badges/512/baX-iItLCBOk1Vhfvm2Q_2AthX25cK-g_3dHGkJCkJk.png",
+      "medium": "https://api-assets.clashofclans.com/badges/200/baX-iItLCBOk1Vhfvm2Q_2AthX25cK-g_3dHGkJCkJk.png"
+    }
+  },
+  "leagueTier": {
+    "id": 105000035,
+    "name": "Legend II",
+    "iconUrls": {
+      "small": "https://api-assets.clashofclans.com/leaguetiers/125/2fQPjjBJCXzHdYY8Eul4DQUBB232Bhiw5KPv6TOLMgQ.png",
+      "large": "https://api-assets.clashofclans.com/leaguetiers/326/2fQPjjBJCXzHdYY8Eul4DQUBB232Bhiw5KPv6TOLMgQ.png"
+    }
+  },
+  "builderBaseLeague": { "id": 44000040, "name": "Titanium League II" },
+  "currentLeagueGroupTag": "#8LLPVLR",
+  "currentLeagueSeasonId": 1786338000,
+  "previousLeagueGroupTag": "#8YG0GC0",
+  "previousLeagueSeasonId": 1785733200,
+  "labels": [
+    {
+      "id": 57000007,
+      "name": "Farming",
+      "iconUrls": {
+        "small": "https://api-assets.clashofclans.com/labels/64/aKHRoHhkn6n3wj09tWxAA3DfKL6s45dHe3_VtKgkkhQ.png",
+        "medium": "https://api-assets.clashofclans.com/labels/128/aKHRoHhkn6n3wj09tWxAA3DfKL6s45dHe3_VtKgkkhQ.png"
+      }
+    },
+    {
+      "id": 57000009,
+      "name": "Active Daily",
+      "iconUrls": {
+        "small": "https://api-assets.clashofclans.com/labels/64/RL_UvBrIVskoBM7c6EtsjhhhO7Ie0hMyC5DPHwaGmXo.png",
+        "medium": "https://api-assets.clashofclans.com/labels/128/RL_UvBrIVskoBM7c6EtsjhhhO7Ie0hMyC5DPHwaGmXo.png"
+      }
+    }
+  ],
+  "achievements": [
+    {
+      "name": "Bigger Coffers",
+      "stars": 3,
+      "value": 19,
+      "target": 10,
+      "info": "Upgrade a Gold Storage to level 10",
+      "completionInfo": "Highest Gold Storage level: 19",
+      "village": "home"
+    },
+    {
+      "name": "League All-Star",
+      "stars": 3,
+      "value": 22,
+      "target": 1,
+      "info": "Become a Champion!",
+      "completionInfo": "Highest league: Legend League",
+      "village": "home"
+    },
+    {
+      "name": "War League Legend",
+      "stars": 3,
+      "value": 474,
+      "target": 250,
+      "info": "Score 250 Stars for your clan in War League battles",
+      "completionInfo": null,
+      "village": "home"
+    },
+    {
+      "name": "Conqueror",
+      "stars": 3,
+      "value": 6218,
+      "target": 5000,
+      "info": "Win 5000 multiplayer battles",
+      "completionInfo": null,
+      "village": "home"
+    },
+    {
+      "name": "Well Seasoned",
+      "stars": 3,
+      "value": 171570,
+      "target": 50000,
+      "info": "Earn 50000 points in Season Challenges",
+      "completionInfo": null,
+      "village": "home"
+    }
+  ],
+  "playerHouse": {
+    "elements": [
+      { "type": "ground", "id": 74000001 },
+      { "type": "roof", "id": 74000012 },
+      { "type": "foot", "id": 74000024 },
+      { "type": "decoration", "id": 74000036 }
+    ]
+  },
+  "heroes": [
+    {
+      "name": "Barbarian King",
+      "level": 110,
+      "maxLevel": 110,
+      "equipment": [
+        { "name": "Giant Gauntlet", "level": 27, "maxLevel": 27, "village": "home" },
+        { "name": "Stick Horse", "level": 27, "maxLevel": 27, "village": "home" }
+      ],
+      "village": "home"
+    },
+    {
+      "name": "Archer Queen",
+      "level": 110,
+      "maxLevel": 110,
+      "equipment": [
+        { "name": "Frozen Arrow", "level": 27, "maxLevel": 27, "village": "home" },
+        { "name": "Magic Mirror", "level": 18, "maxLevel": 27, "village": "home" }
+      ],
+      "village": "home"
+    },
+    {
+      "name": "Minion Prince",
+      "level": 85,
+      "maxLevel": 90,
+      "equipment": [
+        { "name": "Dark Orb", "level": 18, "maxLevel": 27, "village": "home" },
+        { "name": "Henchmen Puppet", "level": 18, "maxLevel": 18, "village": "home" }
+      ],
+      "village": "home"
+    },
+    {
+      "name": "Grand Warden",
+      "level": 95,
+      "maxLevel": 95,
+      "equipment": [
+        { "name": "Eternal Tome", "level": 27, "maxLevel": 27, "village": "home" },
+        { "name": "Fireball", "level": 18, "maxLevel": 27, "village": "home" }
+      ],
+      "village": "home"
+    },
+    {
+      "name": "Royal Champion",
+      "level": 55,
+      "maxLevel": 60,
+      "equipment": [
+        { "name": "Spiky Ball", "level": 27, "maxLevel": 27, "village": "home" },
+        { "name": "Seeking Shield", "level": 18, "maxLevel": 18, "village": "home" }
+      ],
+      "village": "home"
+    },
+    {
+      "name": "Dragon Duke",
+      "level": 25,
+      "maxLevel": 30,
+      "equipment": [
+        { "name": "Dragon Fang", "level": 18, "maxLevel": 18, "village": "home" },
+        { "name": "Ember Crown", "level": 27, "maxLevel": 27, "village": "home" }
+      ],
+      "village": "home"
+    },
+    {
+      "name": "Battle Machine",
+      "level": 35,
+      "maxLevel": 35,
+      "equipment": [],
+      "village": "builderBase"
+    },
+    {
+      "name": "Battle Copter",
+      "level": 35,
+      "maxLevel": 35,
+      "equipment": [],
+      "village": "builderBase"
+    }
+  ],
+  "heroEquipment": [
+    { "name": "Giant Gauntlet", "level": 27, "maxLevel": 27, "village": "home" },
+    { "name": "Stick Horse", "level": 27, "maxLevel": 27, "village": "home" },
+    { "name": "Frozen Arrow", "level": 27, "maxLevel": 27, "village": "home" },
+    { "name": "Magic Mirror", "level": 18, "maxLevel": 27, "village": "home" },
+    { "name": "Eternal Tome", "level": 27, "maxLevel": 27, "village": "home" },
+    { "name": "Fireball", "level": 18, "maxLevel": 27, "village": "home" },
+    { "name": "Spiky Ball", "level": 27, "maxLevel": 27, "village": "home" },
+    { "name": "Seeking Shield", "level": 18, "maxLevel": 18, "village": "home" },
+    { "name": "Dark Orb", "level": 18, "maxLevel": 27, "village": "home" },
+    { "name": "Henchmen Puppet", "level": 18, "maxLevel": 18, "village": "home" },
+    { "name": "Dragon Fang", "level": 18, "maxLevel": 18, "village": "home" },
+    { "name": "Ember Crown", "level": 27, "maxLevel": 27, "village": "home" }
+  ],
+  "troops": [
+    { "name": "Barbarian", "level": 13, "maxLevel": 13, "village": "home" },
+    { "name": "Archer", "level": 13, "maxLevel": 13, "village": "home" },
+    { "name": "Dragon", "level": 12, "maxLevel": 12, "village": "home" },
+    { "name": "Electro Titan", "level": 5, "maxLevel": 6, "village": "home" },
+    { "name": "Root Rider", "level": 4, "maxLevel": 5, "village": "home" },
+    { "name": "L.A.S.S.I", "level": 30, "maxLevel": 30, "village": "home" },
+    { "name": "Electro Owl", "level": 25, "maxLevel": 30, "village": "home" },
+    { "name": "Raged Barbarian", "level": 20, "maxLevel": 20, "village": "builderBase" }
+  ],
+  "spells": [
+    { "name": "Lightning Spell", "level": 12, "maxLevel": 12, "village": "home" },
+    { "name": "Rage Spell", "level": 7, "maxLevel": 7, "village": "home" },
+    { "name": "Freeze Spell", "level": 8, "maxLevel": 8, "village": "home" },
+    { "name": "Recall Spell", "level": 5, "maxLevel": 6, "village": "home" },
+    { "name": "Poison Spell", "level": 11, "maxLevel": 11, "village": "home" }
+  ]
+}

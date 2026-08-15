@@ -1,0 +1,259 @@
+{
+  "_mock": "GET /clans/%232L92V9CYP/members — shape verified against the live API, Aug 2026. Values are fabricated; only the structure is real.",
+  "items": [
+    {
+      "tag": "#2Y8YJ0G2V",
+      "name": "King Bob",
+      "role": "coLeader",
+      "townHallLevel": 18,
+      "expLevel": 254,
+      "league": {
+        "id": 29000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leagues/72/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "tiny": "https://api-assets.clashofclans.com/leagues/36/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "leagueTier": {
+        "id": 105000036,
+        "name": "Legend I",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leaguetiers/125/s5Y12RDRg7tgznd2RwU9kgLbedC5Not4peiHfOaWfJo.png",
+          "large": "https://api-assets.clashofclans.com/leaguetiers/326/s5Y12RDRg7tgznd2RwU9kgLbedC5Not4peiHfOaWfJo.png"
+        }
+      },
+      "trophies": 5132,
+      "builderBaseTrophies": 4777,
+      "clanRank": 1,
+      "previousClanRank": 1,
+      "donations": 511,
+      "donationsReceived": 59,
+      "playerHouse": {
+        "elements": [
+          { "type": "ground", "id": 74000000 },
+          { "type": "roof", "id": 74000012 }
+        ]
+      },
+      "builderBaseLeague": { "id": 44000040, "name": "Titanium League II" }
+    },
+    {
+      "tag": "#JUG2922Y",
+      "name": "SkW Ben",
+      "role": "coLeader",
+      "townHallLevel": 18,
+      "expLevel": 241,
+      "league": {
+        "id": 29000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leagues/72/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "tiny": "https://api-assets.clashofclans.com/leagues/36/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "leagueTier": {
+        "id": 105000036,
+        "name": "Legend I",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leaguetiers/125/s5Y12RDRg7tgznd2RwU9kgLbedC5Not4peiHfOaWfJo.png",
+          "large": "https://api-assets.clashofclans.com/leaguetiers/326/s5Y12RDRg7tgznd2RwU9kgLbedC5Not4peiHfOaWfJo.png"
+        }
+      },
+      "trophies": 5000,
+      "builderBaseTrophies": 4512,
+      "clanRank": 2,
+      "previousClanRank": 3,
+      "donations": 59,
+      "donationsReceived": 1204,
+      "playerHouse": { "elements": [{ "type": "ground", "id": 74000002 }] },
+      "builderBaseLeague": { "id": 44000039, "name": "Titanium League III" }
+    },
+    {
+      "tag": "#229JYUYRR",
+      "name": "xCuates",
+      "role": "coLeader",
+      "townHallLevel": 18,
+      "expLevel": 236,
+      "league": {
+        "id": 29000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leagues/72/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "tiny": "https://api-assets.clashofclans.com/leagues/36/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "leagueTier": {
+        "id": 105000036,
+        "name": "Legend I",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leaguetiers/125/s5Y12RDRg7tgznd2RwU9kgLbedC5Not4peiHfOaWfJo.png",
+          "large": "https://api-assets.clashofclans.com/leaguetiers/326/s5Y12RDRg7tgznd2RwU9kgLbedC5Not4peiHfOaWfJo.png"
+        }
+      },
+      "trophies": 4803,
+      "builderBaseTrophies": 4390,
+      "clanRank": 3,
+      "previousClanRank": 2,
+      "donations": 438,
+      "donationsReceived": 402,
+      "playerHouse": { "elements": [{ "type": "ground", "id": 74000000 }] },
+      "builderBaseLeague": { "id": 44000039, "name": "Titanium League III" }
+    },
+    {
+      "tag": "#L0VGRY228",
+      "name": "DaisyMoonToNoon",
+      "role": "admin",
+      "townHallLevel": 18,
+      "expLevel": 233,
+      "league": {
+        "id": 29000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leagues/72/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "tiny": "https://api-assets.clashofclans.com/leagues/36/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "leagueTier": {
+        "id": 105000035,
+        "name": "Legend II",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leaguetiers/125/2fQPjjBJCXzHdYY8Eul4DQUBB232Bhiw5KPv6TOLMgQ.png",
+          "large": "https://api-assets.clashofclans.com/leaguetiers/326/2fQPjjBJCXzHdYY8Eul4DQUBB232Bhiw5KPv6TOLMgQ.png"
+        }
+      },
+      "trophies": 4712,
+      "builderBaseTrophies": 4582,
+      "clanRank": 4,
+      "previousClanRank": 4,
+      "donations": 858,
+      "donationsReceived": 2398,
+      "playerHouse": { "elements": [{ "type": "ground", "id": 74000001 }] },
+      "builderBaseLeague": { "id": 44000040, "name": "Titanium League II" }
+    },
+    {
+      "tag": "#P8QRLV9C2",
+      "name": "Nightfall",
+      "role": "member",
+      "townHallLevel": 17,
+      "expLevel": 198,
+      "league": {
+        "id": 29000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leagues/72/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "tiny": "https://api-assets.clashofclans.com/leagues/36/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "leagueTier": {
+        "id": 105000034,
+        "name": "Legend III",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leaguetiers/125/kQF3pP6xr9Yl8Q2mVdJb0nZsT1wUeXcHgAoLiKyNvBs.png",
+          "large": "https://api-assets.clashofclans.com/leaguetiers/326/kQF3pP6xr9Yl8Q2mVdJb0nZsT1wUeXcHgAoLiKyNvBs.png"
+        }
+      },
+      "trophies": 4488,
+      "builderBaseTrophies": 3902,
+      "clanRank": 5,
+      "previousClanRank": 7,
+      "donations": 1240,
+      "donationsReceived": 980,
+      "playerHouse": { "elements": [{ "type": "ground", "id": 74000000 }] },
+      "builderBaseLeague": { "id": 44000038, "name": "Titanium League I" }
+    },
+    {
+      "tag": "#YR20LQ8VJ",
+      "name": "Sparrow",
+      "role": "member",
+      "townHallLevel": 16,
+      "expLevel": 171,
+      "league": {
+        "id": 29000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leagues/72/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "tiny": "https://api-assets.clashofclans.com/leagues/36/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "leagueTier": {
+        "id": 105000033,
+        "name": "Electro League 33",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leaguetiers/125/mNvKp2QsXbT7RyLdW8jFhC0oZeUaIgB4nS1xVtYrEkM.png",
+          "large": "https://api-assets.clashofclans.com/leaguetiers/326/mNvKp2QsXbT7RyLdW8jFhC0oZeUaIgB4nS1xVtYrEkM.png"
+        }
+      },
+      "trophies": 4102,
+      "builderBaseTrophies": 3550,
+      "clanRank": 6,
+      "previousClanRank": 5,
+      "donations": 204,
+      "donationsReceived": 1650,
+      "playerHouse": { "elements": [{ "type": "ground", "id": 74000002 }] },
+      "builderBaseLeague": { "id": 44000037, "name": "Platinum League I" }
+    },
+    {
+      "tag": "#G9CV0RJ8L",
+      "name": "Tinytoon",
+      "role": "member",
+      "townHallLevel": 14,
+      "expLevel": 129,
+      "league": {
+        "id": 29000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leagues/72/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "tiny": "https://api-assets.clashofclans.com/leagues/36/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "leagueTier": {
+        "id": 105000020,
+        "name": "Golem League 20",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leaguetiers/125/xTb9YcRmK1oPvHgLzQd7WnEsJ2fUaN0iB5rCtXyMlAo.png",
+          "large": "https://api-assets.clashofclans.com/leaguetiers/326/xTb9YcRmK1oPvHgLzQd7WnEsJ2fUaN0iB5rCtXyMlAo.png"
+        }
+      },
+      "trophies": 2740,
+      "builderBaseTrophies": 2810,
+      "clanRank": 7,
+      "previousClanRank": 6,
+      "donations": 88,
+      "donationsReceived": 640,
+      "playerHouse": { "elements": [] },
+      "builderBaseLeague": { "id": 44000032, "name": "Gold League II" }
+    },
+    {
+      "tag": "#82YCJ0VRQ",
+      "name": "GhostRider",
+      "role": "member",
+      "townHallLevel": 17,
+      "expLevel": 205,
+      "league": {
+        "id": 29000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leagues/72/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "tiny": "https://api-assets.clashofclans.com/leagues/36/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "leagueTier": {
+        "id": 105000000,
+        "name": "Unranked",
+        "iconUrls": {
+          "small": "https://api-assets.clashofclans.com/leaguetiers/125/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png",
+          "large": "https://api-assets.clashofclans.com/leaguetiers/326/e--YMyIexEQQhE4imLoJcwhYn6Uy8KqlgyY3_kFV6t4.png"
+        }
+      },
+      "trophies": 0,
+      "builderBaseTrophies": 4001,
+      "clanRank": 8,
+      "previousClanRank": 8,
+      "donations": 0,
+      "donationsReceived": 0,
+      "playerHouse": { "elements": [{ "type": "ground", "id": 74000000 }] },
+      "builderBaseLeague": { "id": 44000038, "name": "Titanium League I" }
+    }
+  ],
+  "paging": { "cursors": {} }
+}

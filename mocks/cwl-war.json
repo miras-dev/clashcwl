@@ -1,0 +1,123 @@
+{
+  "_mock": "GET /clanwarleagues/wars/%238QVYPGJRL — one CWL round. War tags come from GET /clans/{tag}/currentwar/leaguegroup → rounds[].warTags[]. Rosters trimmed to 3 members each; a real 15v15 repeats the same shape.",
+  "state": "warEnded",
+  "teamSize": 15,
+  "attacksPerMember": 1,
+  "preparationStartTime": "20260812T050000.000Z",
+  "startTime": "20260813T050000.000Z",
+  "endTime": "20260814T050000.000Z",
+  "clan": {
+    "tag": "#2L92V9CYP",
+    "name": "Sumkindofwonder",
+    "badgeUrls": {
+      "small": "https://api-assets.clashofclans.com/badges/70/baX-iItLCBOk1Vhfvm2Q_2AthX25cK-g_3dHGkJCkJk.png",
+      "large": "https://api-assets.clashofclans.com/badges/512/baX-iItLCBOk1Vhfvm2Q_2AthX25cK-g_3dHGkJCkJk.png",
+      "medium": "https://api-assets.clashofclans.com/badges/200/baX-iItLCBOk1Vhfvm2Q_2AthX25cK-g_3dHGkJCkJk.png"
+    },
+    "clanLevel": 25,
+    "attacks": 14,
+    "stars": 38,
+    "destructionPercentage": 91.53,
+    "members": [
+      {
+        "tag": "#2Y8YJ0G2V",
+        "name": "King Bob",
+        "townhallLevel": 18,
+        "mapPosition": 1,
+        "opponentAttacks": 0,
+        "attacks": [
+          {
+            "attackerTag": "#2Y8YJ0G2V",
+            "defenderTag": "#YCJ08PQRV",
+            "stars": 3,
+            "destructionPercentage": 100,
+            "order": 7,
+            "duration": 164
+          }
+        ]
+      },
+      {
+        "tag": "#JUG2922Y",
+        "name": "SkW Ben",
+        "townhallLevel": 18,
+        "mapPosition": 2,
+        "opponentAttacks": 1,
+        "bestOpponentAttack": {
+          "attackerTag": "#L82YQV0RC",
+          "defenderTag": "#JUG2922Y",
+          "stars": 2,
+          "destructionPercentage": 78,
+          "order": 11,
+          "duration": 189
+        },
+        "attacks": [
+          {
+            "attackerTag": "#JUG2922Y",
+            "defenderTag": "#8QRCV20YL",
+            "stars": 2,
+            "destructionPercentage": 87,
+            "order": 3,
+            "duration": 178
+          }
+        ]
+      },
+      {
+        "tag": "#L0VGRY228",
+        "name": "DaisyMoonToNoon",
+        "townhallLevel": 18,
+        "mapPosition": 3,
+        "opponentAttacks": 1,
+        "bestOpponentAttack": {
+          "attackerTag": "#RQ9C0V2YJ",
+          "defenderTag": "#L0VGRY228",
+          "stars": 3,
+          "destructionPercentage": 100,
+          "order": 14,
+          "duration": 151
+        },
+        "attacks": []
+      }
+    ]
+  },
+  "opponent": {
+    "tag": "#9YRQ2VC0L",
+    "name": "Reddit Zulu",
+    "badgeUrls": {
+      "small": "https://api-assets.clashofclans.com/badges/70/kQ8pT2mVxYcRbN1oLzWdJf7sUaEgH0iB5rCtXyMlAoQ.png",
+      "large": "https://api-assets.clashofclans.com/badges/512/kQ8pT2mVxYcRbN1oLzWdJf7sUaEgH0iB5rCtXyMlAoQ.png",
+      "medium": "https://api-assets.clashofclans.com/badges/200/kQ8pT2mVxYcRbN1oLzWdJf7sUaEgH0iB5rCtXyMlAoQ.png"
+    },
+    "clanLevel": 22,
+    "attacks": 15,
+    "stars": 33,
+    "destructionPercentage": 86.20,
+    "members": [
+      {
+        "tag": "#YCJ08PQRV",
+        "name": "Zulu Leader",
+        "townhallLevel": 18,
+        "mapPosition": 1,
+        "opponentAttacks": 1,
+        "bestOpponentAttack": {
+          "attackerTag": "#2Y8YJ0G2V",
+          "defenderTag": "#YCJ08PQRV",
+          "stars": 3,
+          "destructionPercentage": 100,
+          "order": 7,
+          "duration": 164
+        },
+        "attacks": [
+          {
+            "attackerTag": "#YCJ08PQRV",
+            "defenderTag": "#229JYUYRR",
+            "stars": 2,
+            "destructionPercentage": 81,
+            "order": 5,
+            "duration": 195
+          }
+        ]
+      }
+    ]
+  },
+  "warLeague": { "id": 48000018, "name": "Champion League I" }
+}
