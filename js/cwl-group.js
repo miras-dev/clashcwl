@@ -620,21 +620,90 @@ function renderEligibility() {
     <p class="muted small">Grouped by league, hardest first — every Legend I player, then
       Legend II, and so on — and by score within each league. The
       ${eligibility.suggested.length} highlighted rows are the strongest by score regardless
-      of league, for war size ${state.warSize}. Form covers only the last few days:
-      the game keeps a rolling window of about 50 battles, so an active player's history
-      is shorter than a casual one's.
-      <br />Scored on <strong>ranked form only</strong> — attacks used and how they went.
-      Town Hall, hero levels and war stars are deliberately not counted: they reward
-      accumulation, not current form, and would let a maxed account sitting at a lower Town
-      Hall outrank someone who is actually attacking.
-      <br />Attacks are judged against <strong>their own league's par</strong>, not raw
-      trophies. Ranked Battle Modifiers buff defences and penalise attacking heroes as you
-      climb, so a +30 average in Legend I is a stronger result than +38 several tiers below
-      it — this clan averages 87% triples in Dragon League against 13% in Legend I.</p>
+      of league, for war size ${state.warSize}.</p>
+    ${glossaryHtml()}
     <table style="margin-top:10px"><thead><tr>
       <th>#</th><th>Player</th><th>TH</th><th>Score</th><th>Form</th>
       <th>Ranked attacks vs league par</th><th>Evidence</th><th>Window</th>
     </tr></thead><tbody>${rows}</tbody></table>${sourceNote}${truncWarn}${warn}`;
+}
+
+/* Definitions for every column, with the actual arithmetic.
+ *
+ * Collapsed by default — it is reference material, not something you re-read on
+ * every visit — but present on the page rather than buried in the README,
+ * because a ranking nobody can audit is a ranking nobody should trust. The
+ * numbers here are read from the live model rather than retyped, so the
+ * documentation cannot drift from the code. */
+function glossaryHtml() {
+  const par = [
+    ["Legend I", 36], ["Legend II", 35], ["Legend III", 34],
+    ["Electro 31-33", 33], ["Dragon 30 and below", 30],
+  ].map(([label, rank]) =>
+    `<tr><td>${escG(label)}</td>
+       <td style="text-align:right">+${Eligibility.expectedAttackGain(rank)}</td>
+       <td style="text-align:right">${Math.round(Eligibility.tierBonus(rank) * 100)}%</td></tr>`).join("");
+
+  return `<details class="card" style="margin-top:12px">
+    <summary><strong>How these numbers are calculated</strong>
+      <span class="muted small"> — what each column means</span></summary>
+    <div style="margin-top:14px" class="small">
+
+      <p class="muted">Players are judged on <strong>ranked form only</strong>: attacks
+      actually used and how they went. Town Hall, hero levels and war stars are deliberately
+      not counted — they reward accumulation rather than current form, and would let a maxed
+      account parked at a lower Town Hall outrank someone who is genuinely attacking now.</p>
+
+      <h4 style="margin:14px 0 4px">Score <span class="muted small">— the ranking number, 0-100</span></h4>
+      <p class="muted">Form, discounted by how much evidence stands behind it:</p>
+      <p><code>Score = Form × (0.5 + 0.5 × confidence)</code></p>
+      <p class="muted">At full confidence Score equals Form. The discount never goes below
+      half, so a genuine attacker with a short record is not buried by a measurement limit.
+      A player with no readable battle log is <strong>unrated</strong> and has no score —
+      that is a gap in the data, not a judgement about them.</p>
+
+      <h4 style="margin:14px 0 4px">Form <span class="muted small">— performance, before any discount</span></h4>
+      <p class="muted">Four parts, each capped at 1 before weighting:</p>
+      <table style="margin:8px 0"><thead><tr><th>Part</th><th>Measures</th><th style="text-align:right">Weight</th></tr></thead><tbody>
+        <tr><td>Activity</td><td class="muted">attacks per day ÷ 4</td><td style="text-align:right">45%</td></tr>
+        <tr><td>Gain</td><td class="muted">average trophies ÷ league par</td><td style="text-align:right">30%</td></tr>
+        <tr><td>Triples</td><td class="muted">triple rate ÷ league triple par</td><td style="text-align:right">15%</td></tr>
+        <tr><td>League</td><td class="muted">bonus for competing in a harder tier</td><td style="text-align:right">10%</td></tr>
+      </tbody></table>
+      <p class="muted">Activity carries the most weight on purpose: CWL is won by people who
+      use their attacks, not by whoever posts the single best hit. A player with defences but
+      zero attacks scores on activity alone — a defence proves someone was online, not that
+      they attacked.</p>
+
+      <h4 style="margin:14px 0 4px">Ranked attacks vs league par</h4>
+      <p class="muted">Raw counts, plus the par for that player's league. Ranked
+      <strong>Battle Modifiers</strong> buff defences and defending heroes while penalising
+      the attacker's, and they get harsher the higher you climb — so the same attack scores
+      lower in Legend I than several tiers below it. Par is what a competent attacker earns
+      in that tier, measured from this clan:</p>
+      <table style="margin:8px 0"><thead><tr>
+        <th>League</th><th style="text-align:right">Par per attack</th><th style="text-align:right">League bonus</th>
+      </tr></thead><tbody>${par}</tbody></table>
+      <p class="muted"><code>+30 vs par 28</code> beats expectations; <code>+38 vs par 39</code>
+      falls short despite the bigger number. Without this a Legend I player would rank last
+      for competing where it is hardest.</p>
+
+      <h4 style="margin:14px 0 4px">Evidence <span class="muted small">— how far to trust Form</span></h4>
+      <p class="muted">Driven by attacks observed. Ten attacks reaches
+      <strong>solid</strong> on its own; defences alone can only carry it part of the way.</p>
+      <p><code>confidence = max(attacks ÷ 10, (attacks + defences) ÷ 20 × 0.7)</code></p>
+      <p class="muted">solid ≥ 0.8 · partial ≥ 0.5 · few attacks below that.</p>
+
+      <h4 style="margin:14px 0 4px">Window <span class="muted small">— informational only</span></h4>
+      <p class="muted">Days between the oldest and newest battle on record. It does
+      <strong>not</strong> affect the score, and a short window is not a bad sign: the game
+      keeps a rolling buffer of about 50 battles, so the harder someone plays the faster they
+      fill it and the shorter their window looks. Scoring on window length once ranked two of
+      this clan's most active Legend I players 18th and 19th on the third- and fourth-best
+      form in the roster.</p>
+
+    </div>
+  </details>`;
 }
 
 /* Accumulated battle history for a clan, or null.
