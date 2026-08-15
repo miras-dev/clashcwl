@@ -89,6 +89,47 @@ console.log("formScore");
   });
 }
 
+console.log("confidence");
+{
+  const { formConfidence } = require("../js/eligibility.js");
+  const { summariseRanked } = require("../js/battlelog.js");
+  // hours apart, so many battles can share a short window
+  const burst = (n, hours) => summariseRanked({
+    items: Array.from({ length: n }, (_, i) => ({
+      battleType: "ranked", attack: true, stars: 2, destructionPercentage: 85,
+      battleTimestamp: `20260815T${String(Math.floor(i * hours / n)).padStart(2, "0")}0000.000Z`,
+    })),
+  });
+
+  // Regression: confidence used to be min(volume, window), so the busiest
+  // players — who fill the game's fixed ~50-battle buffer fastest and therefore
+  // show the SHORTEST windows — were scored as weak evidence. Two Legend I
+  // players with 16 attacks each ranked 18th and 19th on the third- and
+  // fourth-best form in the clan.
+  test("many attacks in a short window is strong evidence", () => {
+    const busy = formConfidence(burst(16, 2));      // 16 attacks inside 2 hours
+    assert.strictEqual(busy, 1, `16 attacks should be full confidence, got ${busy}`);
+  });
+
+  test("few attacks over a long window is not", () => {
+    const sparse = summariseRanked({
+      items: [0, 5].map((d) => ({
+        battleType: "ranked", attack: true, stars: 2, destructionPercentage: 85,
+        battleTimestamp: `2026081${d}T120000.000Z`,
+      })),
+    });
+    assert.ok(formConfidence(sparse) < 0.5,
+      "two attacks should not be treated as solid evidence");
+  });
+
+  test("confidence rises with attacks, never falls", () => {
+    const seq = [2, 5, 10, 16].map((n) => formConfidence(burst(n, 6)));
+    for (let i = 1; i < seq.length; i++) {
+      assert.ok(seq[i] >= seq[i - 1], `confidence dropped: ${JSON.stringify(seq)}`);
+    }
+  });
+}
+
 console.log("league tiers");
 {
   test("tier names resolve to the game's own ladder order", () => {

@@ -526,10 +526,13 @@ function renderRoster() {
    stale "who should play" list is worse than no list.                        */
 let eligibility = null;
 
+/* Confidence is driven by attacks observed, not by how long the window is — a
+   busy player fills the game's fixed battle buffer faster and so shows a
+   SHORTER window, which is the opposite of weak evidence. */
 function confidenceLabel(c) {
   if (c >= 0.8) return { text: "solid", cls: "" };
   if (c >= 0.5) return { text: "partial", cls: "muted" };
-  return { text: "thin", cls: "muted" };
+  return { text: "few attacks", cls: "muted" };
 }
 
 function renderEligibility() {
@@ -542,6 +545,11 @@ function renderEligibility() {
     const s = m.summary;
     const conf = confidenceLabel(m.confidence);
     const inRoster = suggested.has(m.tag);
+    // A player who has opted OUT of war can rank high on form yet never be
+    // picked. Dimming alone made them look selected — they sit among the top
+    // rows undimmed while the players who actually fill those slots appear
+    // below them — so the name carries the exclusion too.
+    const optedOut = m.warPreference === "out";
 
     // Form is the headline number, so an absent one has to read as "unknown"
     // rather than as a low score.
@@ -565,7 +573,8 @@ function renderEligibility() {
 
     return `<tr style="${inRoster ? "" : "opacity:.55"}">
       <td class="muted">${m.rank}</td>
-      <td><strong>${escG(m.name)}</strong>
+      <td><strong${optedOut ? ` style="text-decoration:line-through; opacity:.7"` : ""}>${escG(m.name)}</strong>${
+        optedOut ? ` <span class="pill" style="color:var(--red); border-color:var(--red)">OUT</span>` : ""}
         <div class="muted small">${escG(m.tag)}${m.leagueTier ? " · " + escG(m.leagueTier) : ""}</div></td>
       <td><span class="player-chip"><span class="th">TH${m.thLevel || "?"}</span></span></td>
       <td>${scoreCell}</td>

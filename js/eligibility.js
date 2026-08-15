@@ -165,14 +165,28 @@ function formScore(summary, leagueTier) {
 
 /* How much the form number can be trusted, 0-1.
  *
- * The battle log is a rolling buffer, so a short window or few attacks is a
- * measurement limitation rather than evidence about the player. Low confidence
- * shifts weight onto roster and surfaces a warning in the UI. */
+ * Volume is the signal — how many attacks we actually observed. Window length is
+ * NOT: the battle log is a fixed ~50-battle buffer, so the harder someone plays
+ * the faster they fill it and the SHORTER their window gets. Two Legend I
+ * players with 16 attacks each showed 1.9-day windows precisely because they are
+ * the most active people in the clan, and treating that as weak evidence ranked
+ * them 18th and 19th on the third- and fourth-best form in the roster.
+ *
+ * So confidence is driven by attacks seen. A short window only counts against a
+ * player when it comes with few attacks — that is genuinely thin data rather
+ * than a busy player outrunning the buffer.
+ */
+const CONFIDENT_ATTACKS = 10;
+
 function formConfidence(summary) {
   if (!summary || !summary.hasData) return 0;
-  const byVolume = clamp01((summary.attackCount + summary.defenseCount) / 12);
-  const byWindow = clamp01((summary.windowDays || 0) / 3);
-  return Math.min(byVolume, byWindow);
+
+  const byAttacks = clamp01((summary.attackCount || 0) / CONFIDENT_ATTACKS);
+  // Defenses are weaker evidence — they say a player was online, not that they
+  // attacked — so they can only carry confidence part of the way on their own.
+  const byPresence = clamp01((summary.attackCount + summary.defenseCount) / 20) * 0.7;
+
+  return Math.max(byAttacks, byPresence);
 }
 
 /* Score one member. `player` is a clan-deep player row; `battlelog` is the raw

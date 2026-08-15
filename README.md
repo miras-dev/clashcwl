@@ -158,6 +158,13 @@ battle log is unrated. A player whose log shows zero attacks scores 0 — and so
 *below* the unrated ones, because proven inactivity is worse evidence than no
 evidence: the unrated player might still turn up. Both are stated in the row.
 
+Confidence — how much the form number is trusted — is driven by **attacks
+observed**, never by how long the window is. Window length is an inverted signal:
+the buffer holds a fixed ~50 battles, so the harder someone plays the faster they
+fill it and the shorter their window looks. Scoring on window once ranked two
+Legend I players with 16 attacks each 18th and 19th, on the third- and fourth-best
+form in the clan.
+
 ```bash
 node test/eligibility.test.js
 ```
