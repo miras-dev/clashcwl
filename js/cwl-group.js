@@ -615,75 +615,88 @@ function battleLogPanel(summary) {
   </div>`;
 }
 
-/* Season-by-season attack usage — the evidence behind the confidence column.
+/* Season-by-season league, trophies and placement.
  *
- * The battle log above shows current form on a ~50-battle buffer. This shows
- * whether that form is backed by months of showing up, which is the question CWL
- * actually turns on: a missed hit costs up to three stars and cannot be made up.
+ * The battle log above is current form on a ~50-battle buffer; this is where the
+ * player has actually finished, month after month.
  *
- * Only usage is charted. Trophies and placement are shown per row but explicitly
- * NOT compared across seasons where the tier differs, and stars are absent
- * entirely because the API returns 0 for them — see js/leaguehistory.js. Saying
- * so in the panel is deliberate: a blank column invites the reader to assume we
- * measured something and found nothing. */
+ * Rows are GROUPED BY TIER rather than listed flat, because trophy totals are
+ * only comparable inside one league. A player who moved Legend III → Legend II
+ * shows 1,200 in the first and 1,249 in the second, and a flat table reads that
+ * as a 49-trophy improvement when it is really a promotion to a harder pool with
+ * a different scale. Grouping puts the comparable numbers next to each other and
+ * makes the tier change a visible boundary instead of an invisible one.
+ *
+ * Attacks used is kept as a plain column — it is the one figure here that means
+ * the same thing in every tier. Stars are absent because the API returns 0 for
+ * them on every account, and the note says so: a missing column otherwise reads
+ * as "measured, found nothing". */
 function seasonPanel(seasons) {
   if (!seasons || !seasons.hasData) {
     return `<div class="season-panel">
-      <div class="bl-head">Season reliability</div>
+      <div class="bl-head">Season history</div>
       <p class="muted small" style="margin:0">No completed ranked seasons on record —
-        either a new account, or the API has no league history for them. Confidence
-        rests on the battle log alone.</p>
+        either a new account, or the API has no league history for them.</p>
     </div>`;
   }
 
-  const pct = Math.round(seasons.usage * 100);
-  // The verdict colour has to match what the number means for selection, not
-  // just how big it is: 85% is the line where missed hits start to matter.
-  const tone = seasons.reliable == null ? "var(--muted)"
-    : seasons.reliable ? "var(--green)" : "var(--red)";
+  // Most recent first, then split whenever the tier changes. Consecutive seasons
+  // in one tier stay in a single block; returning to a tier later starts a new
+  // one, which is correct — those runs are months apart.
+  const ordered = seasons.seasons.slice().reverse();
+  const groups = [];
+  ordered.forEach((s) => {
+    const name = s.tier ? s.tier.name : "Unknown league";
+    const last = groups[groups.length - 1];
+    if (last && last.name === name) last.rows.push(s);
+    else groups.push({ name, tier: s.tier, rows: [s] });
+  });
 
-  const rows = seasons.seasons.slice().reverse().map((s) => {
-    const u = s.usage == null ? 0 : Math.round(s.usage * 100);
-    const when = s.date
-      ? s.date.toLocaleDateString(undefined, { month: "short", year: "numeric" })
-      : "—";
-    const full = s.usage === 1;
-    return `<div class="season-row">
-      <span class="season-when muted">${escG(when)}</span>
-      <span class="season-bar" title="${s.attacksUsed} of ${s.attacksAvailable} attacks used">
-        <span class="season-fill${full ? " full" : ""}" style="width:${u}%"></span>
-      </span>
-      <span class="season-count${full ? " full" : ""}">${s.attacksUsed}/${s.attacksAvailable}</span>
-      <span class="season-tier muted small">${s.tier ? escG(s.tier.name) : "—"}</span>
-      <span class="season-troph muted small">${s.trophies ? s.trophies.toLocaleString() : "—"}${
-        s.placement ? ` · #${s.placement}` : ""}</span>
+  const best = (rows) => rows.reduce((a, r) =>
+    (r.placement != null && (a == null || r.placement < a)) ? r.placement : a, null);
+
+  const blocks = groups.map((g) => {
+    const rows = g.rows.map((s) => {
+      const when = s.date
+        ? s.date.toLocaleDateString(undefined, { month: "short", year: "numeric" })
+        : "—";
+      const full = s.usage === 1;
+      return `<div class="season-row">
+        <span class="season-when muted">${escG(when)}</span>
+        <span class="season-troph">${s.trophies ? s.trophies.toLocaleString() : "—"}</span>
+        <span class="season-place">${s.placement ? `#${s.placement}` : "—"}</span>
+        <span class="season-count${full ? " full" : ""}">${s.attacksUsed}/${s.attacksAvailable}</span>
+      </div>`;
+    }).join("");
+
+    // The tier's own best finish, so the block has a summary that is safe to
+    // read on its own — unlike a trophy figure lifted out of its league.
+    const top = best(g.rows);
+    return `<div class="season-group">
+      <div class="season-group-head">
+        ${g.tier ? `<img src="${escG(g.tier.iconUrls.small)}" alt="" width="18" height="18"
+             loading="lazy" onerror="this.style.display='none'">` : ""}
+        <strong>${escG(g.name)}</strong>
+        <span class="muted small">${g.rows.length} season${g.rows.length === 1 ? "" : "s"}${
+          top != null ? ` · best #${top}` : ""}</span>
+      </div>
+      <div class="season-cols muted small">
+        <span>Season</span><span>Trophies</span><span>Placed</span><span>Attacks</span>
+      </div>
+      ${rows}
     </div>`;
   }).join("");
 
-  // What the headline number rests on, in one line, so the percentage is never
-  // read as a bare score.
-  const verdict = seasons.reliable == null
-    ? `Only ${seasons.seasonCount} season${seasons.seasonCount === 1 ? "" : "s"} on record — too few to call either way.`
-    : seasons.reliable
-      ? `Used ${seasons.attacksUsed} of ${seasons.attacksAvailable} available attacks across ${seasons.seasonCount} seasons${
-          seasons.perfectSeasons ? `, ${seasons.perfectSeasons} of them perfect` : ""}. Unlikely to miss CWL hits.`
-      : `Used only ${seasons.attacksUsed} of ${seasons.attacksAvailable} available attacks across ${seasons.seasonCount} seasons. Has a record of leaving attacks unused.`;
-
   return `<div class="season-panel">
-    <div class="bl-head">Season reliability
-      <span class="muted small" style="font-weight:600">— attacks used, not how well</span>
+    <div class="bl-head">Season history
+      <span class="muted small" style="font-weight:600">— where they finished, by league</span>
     </div>
-    <div class="season-headline">
-      <strong style="color:${tone}">${pct}%</strong>
-      <span class="muted small">${escG(verdict)}</span>
-    </div>
-    <div class="season-rows">${rows}</div>
+    <div class="season-groups">${blocks}</div>
     <p class="muted small season-note">
-      Ranked seasons only, most recent first. Trophies and placement are shown for
-      context but compare only within the same tier — the API publishes no trophy
-      cutoffs, so a total from one league says nothing against another. Star counts
-      are omitted because the endpoint returns zero for them on every account, so
-      there is no historical triple rate to show.</p>
+      Ranked seasons only, most recent first, grouped by league. Trophies compare
+      only within one league — the API publishes no trophy cutoffs, so a total from
+      one tier says nothing against another. Star counts are omitted because the
+      endpoint returns zero for them on every account.</p>
   </div>`;
 }
 

@@ -587,45 +587,50 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
   .bl-panel { grid-template-columns: 1fr; gap: 14px; }
 }
 
-/* ---------- season reliability ---------- */
+/* ---------- season history ---------- */
 /* Sits under the battle log in an expanded player row: the log is this week,
    this is the months behind it. */
 .season-panel {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: 10px; padding: 12px 14px; margin-bottom: 6px;
 }
-.season-headline {
-  display: flex; align-items: baseline; gap: 10px;
-  margin: 10px 0 12px; flex-wrap: wrap;
+.season-groups { margin-top: 10px; }
+/* One block per league. The gap between blocks is the tier change — trophy
+   totals are only comparable inside a block, never across one. */
+.season-group + .season-group { margin-top: 14px; }
+.season-group-head {
+  display: flex; align-items: center; gap: 7px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border);
 }
-.season-headline strong { font-size: 1.5rem; font-weight: 800; line-height: 1; }
-.season-row {
-  display: grid; grid-template-columns: 84px 1fr 58px 116px 104px;
+.season-group-head img { flex: none; object-fit: contain; }
+.season-group-head strong { font-size: .84rem; }
+.season-group-head .muted { margin-left: auto; }
+
+.season-row, .season-cols {
+  display: grid; grid-template-columns: 1fr 88px 68px 74px;
   gap: 10px; align-items: center;
-  padding: 5px 0; font-size: .8rem;
 }
-.season-when { font-size: .74rem; }
-/* The bar is the point of the row — usage reads as a shape before it reads as a
-   number, which is what makes a patchy record obvious at a glance. */
-.season-bar {
-  background: var(--card2); border-radius: 999px;
-  height: 8px; overflow: hidden;
+.season-cols {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .04em;
+  padding: 7px 0 3px;
 }
-.season-fill {
-  display: block; height: 100%; border-radius: 999px;
-  background: var(--gold);
+.season-row { padding: 5px 0; font-size: .82rem; }
+.season-cols span:not(:first-child),
+.season-row > span:not(.season-when) { text-align: right; }
+.season-when { font-size: .78rem; }
+/* Figures line up column-wise so a season is comparable to the one above it at
+   a glance, without the eye having to re-measure each number's width. */
+.season-troph, .season-place, .season-count {
+  font-weight: 700; font-variant-numeric: tabular-nums;
 }
-.season-fill.full { background: var(--green); }
-.season-count {
-  font-weight: 700; text-align: right;
-  font-variant-numeric: tabular-nums;
-}
+.season-place { color: var(--gold); }
+.season-count { color: var(--muted); font-weight: 600; }
 .season-count.full { color: var(--green); }
-.season-tier, .season-troph { text-align: right; }
-.season-note { margin: 10px 0 0; line-height: 1.5; }
+.season-note { margin: 12px 0 0; line-height: 1.5; }
 
 @media (max-width: 700px) {
-  /* Tier and trophies are context, not the signal — drop them before the bar. */
-  .season-row { grid-template-columns: 70px 1fr 52px; }
-  .season-tier, .season-troph { display: none; }
+  /* Attacks used is the first thing to go: it is context here, where trophies
+     and placement are what the panel is for. */
+  .season-row, .season-cols { grid-template-columns: 1fr 76px 60px; }
+  .season-row > .season-count, .season-cols > span:last-child { display: none; }
 }

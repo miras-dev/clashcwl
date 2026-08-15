@@ -221,13 +221,20 @@ and regenerate the module — the tests fail until the two agree.
 node test/leaguetiers.test.js
 ```
 
-### Season reliability
+### Season history
 
 `GET /players/{tag}/leaguehistory` returns one row per completed ranked season.
-Only **attack usage** is read from it — `(attackWins + attackLosses) / maxBattles`
-over the last six seasons — which answers a question the battle log structurally
-cannot: has this player been reliable for months, or did they just start this week?
-The log is a rolling ~50-battle buffer, under four days for the most active players.
+The expanded player panel shows **league, trophies and placement** per season,
+plus attacks used — where someone has actually been finishing, month after month.
+The battle log above it is a rolling ~50-battle buffer, under four days for the
+most active players, so it has no memory behind it.
+
+Rows are **grouped by tier**, not listed flat. Trophy totals only mean something
+inside one league: a player who moved Legend III → Legend II shows 1,200 then
+1,249, which a flat table reads as a 49-trophy gain when it is really a promotion
+into a harder pool on a different scale. The max attacks per season differ by tier
+too (18, 24 and 30 all appear in one real six-season history), which is a second
+reason rows across groups are not comparable.
 
 The rest of the payload is deliberately ignored:
 
@@ -235,15 +242,17 @@ The rest of the payload is deliberately ignored:
 | --- | --- |
 | `attackStars` | `0` on every season of every account observed — a dead field, not a real zero. There is no historical triple rate to be had. |
 | `defenseStars` | A season aggregate, not a per-defence record, so it cannot become a three-starred rate. The battle log measures that properly. |
-| `leagueTrophies`, `placement` | No trophy cutoffs are published per tier, so these compare only within a matching `leagueTierId`. |
+`leagueTrophies` and `placement` **are** displayed, but only ever inside a tier
+group — no trophy cutoffs are published per tier, so a total from one league says
+nothing against another.
 
-Reliability does **not** feed the score or the confidence column. It is fetched
-lazily — one call per player, the first time a row is expanded — so it is not
-available when the clan is ranked, and wiring it into confidence would make that
-column mean different things depending on which rows had been clicked. It is
-presented beside the battle log as separate evidence for the person making the
-call. It would not belong in `formScore` regardless: reliability is accumulation,
-and that model scores current form.
+None of this feeds the score or the confidence column. It is fetched lazily — one
+call per player, the first time a row is expanded — so it is not available when
+the clan is ranked, and wiring it into confidence would make that column mean
+different things depending on which rows had been clicked. It is presented beside
+the battle log as separate evidence for the person making the call. It would not
+belong in `formScore` regardless: season history is accumulation, and that model
+scores current form.
 
 ```bash
 node test/leaguehistory.test.js
