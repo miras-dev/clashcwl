@@ -110,44 +110,35 @@
 
     <!-- ── Step 1: season setup ─────────────────────────────── -->
     <div class="card">
-      <div class="row" style="justify-content:space-between; align-items:flex-start">
-        <h3 style="margin:0">1 · Season setup</h3>
-        <div class="row">
-          <!-- Values match GET /warleagues so they score the same way the
-               API-supplied league does. -->
-          <select id="leagueSelect" style="max-width:220px">
-            <option value="Legend League">Legend League</option>
-            <option value="Titan League I">Titan League I</option>
-            <option value="Titan League II">Titan League II</option>
-            <option value="Titan League III">Titan League III</option>
-            <option value="Champion League I">Champion League I</option>
-            <option value="Champion League II">Champion League II</option>
-            <option value="Champion League III">Champion League III</option>
-            <option value="Master League I" selected>Master League I</option>
-            <option value="Master League II">Master League II</option>
-            <option value="Master League III">Master League III</option>
-            <option value="Crystal League I">Crystal League I</option>
-            <option value="Crystal League II">Crystal League II</option>
-            <option value="Crystal League III">Crystal League III</option>
-            <option value="Gold League I">Gold League I</option>
-            <option value="Gold League II">Gold League II</option>
-            <option value="Gold League III">Gold League III</option>
-            <option value="Silver League I">Silver League I</option>
-            <option value="Silver League II">Silver League II</option>
-            <option value="Silver League III">Silver League III</option>
-            <option value="Bronze League I">Bronze League I</option>
-            <option value="Bronze League II">Bronze League II</option>
-            <option value="Bronze League III">Bronze League III</option>
-            <option value="Unranked">Unranked</option>
-          </select>
-          <select id="warSizeSelect" style="max-width:150px">
-            <option value="15">15 v 15</option>
-            <option value="30">30 v 30</option>
-            <option value="20">20 v 20</option>
-            <option value="10">10 v 10</option>
-            <option value="5">5 v 5</option>
-          </select>
+      <h3 style="margin:0 0 14px">1 · Season setup</h3>
+
+      <!-- War size is the first question because everything downstream is sized
+           by it: the suggested roster, every war day's line-up, and which
+           players count towards a clan's strength. CWL runs at 15v15 or 30v30
+           and nothing else, so those are the only two answers. It is confirmed
+           against the API as soon as there is a group or a played round. -->
+      <div class="setup-q">
+        <div class="setup-label">
+          <strong>How big is your CWL?</strong>
+          <span class="muted small">Set by your leader when signing up</span>
+          <span class="muted small" id="warSizeNote"></span>
         </div>
+        <div class="seg" id="warSizeSeg" role="group" aria-label="CWL war size">
+          <button type="button" class="seg-btn is-on" data-size="15" aria-pressed="true">15 v 15</button>
+          <button type="button" class="seg-btn" data-size="30" aria-pressed="false">30 v 30</button>
+        </div>
+      </div>
+
+      <!-- Read-only: the war league comes from GET /clans/{tag} on your own
+           clan, so it cannot disagree with the game. It used to be a dropdown
+           of 22 leagues that only ever fed the strength model — a wrong guess
+           there silently skewed every promotion estimate. -->
+      <div class="setup-q">
+        <div class="setup-label">
+          <strong>War league</strong>
+          <span class="muted small">Read from the game, not chosen</span>
+        </div>
+        <span id="leagueValue" class="muted">Load your clan to detect it</span>
       </div>
 
       <label for="myClanTag">Your clan tag</label>

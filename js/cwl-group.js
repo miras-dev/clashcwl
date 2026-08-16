@@ -4,15 +4,41 @@
 const $g = (id) => document.getElementById(id);
 
 const STORE = "cc_cwl_group";
+
+/* CWL runs at 15v15 or 30v30. Nothing else — the other sizes belong to regular
+   wars, and offering them here produced rosters and day line-ups that could not
+   exist in a CWL season.
+
+   Declared above `state` on purpose: loadState() normalises the stored size, so
+   these have to be initialised before it runs. */
+const WAR_SIZES = [15, 30];
+const DEFAULT_WAR_SIZE = 15;
+
+/* Snap anything to a real CWL size. Saved seasons may carry 5, 10 or 20 from
+   when those were offered, and a group whose roster is nearer 30 than 15 is
+   read as a 30v30 rather than silently truncated to fifteen. */
+function normWarSize(n) {
+  const v = Number(n);
+  if (WAR_SIZES.includes(v)) return v;
+  return v >= 23 ? 30 : DEFAULT_WAR_SIZE;
+}
+
 let state = loadState();
 let proxyLive = false;
 
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE) || "null");
-    if (s && Array.isArray(s.clans)) return s;
+    if (s && Array.isArray(s.clans)) {
+      s.warSize = normWarSize(s.warSize);
+      // The league is no longer chosen — it is read from the clan the API
+      // returns. A value stored by an older version is dropped rather than
+      // migrated: it was a guess, and the real one arrives with the clan.
+      delete s.league;
+      return s;
+    }
   } catch {}
-  return { league: "Master League I", warSize: 15, myTag: "", clans: [], roster: [], assignments: {} };
+  return { warSize: DEFAULT_WAR_SIZE, myTag: "", clans: [], roster: [], assignments: {} };
 }
 function saveState() {
   try { localStorage.setItem(STORE, JSON.stringify(state)); }
@@ -112,6 +138,74 @@ function warLeagueScore(name) {
   if (!name) return null;
   const v = WAR_LEAGUE_RANK[String(name).toLowerCase().trim()];
   return v == null ? null : v;
+}
+
+/* ---------------- the group's war league ----------------
+ *
+ * Every clan in a CWL group is in the same war league, and the game already
+ * knows which — GET /clans/{tag} carries it as `warLeague`, and clan-deep passes
+ * it straight through. So it is read, never chosen.
+ *
+ * It used to be a dropdown of 22 leagues defaulting to Master I. That default
+ * was wrong for most clans and nothing ever corrected it, while the value fed
+ * warLeagueScore for every clan added by hand — so a season set up in Crystal II
+ * and left on the default had its promotion odds quietly computed against a
+ * harder league than it was playing.
+ *
+ * Our own clan is the source when it is loaded. Failing that, the most common
+ * league among the clans that DO have one: they are all supposed to agree, so
+ * the majority is the group's league even when one clan came in manually. */
+function groupLeague() {
+  const mine = state.clans.find((c) => normTag(c.tag) === normTag(state.myTag));
+  if (mine && mine.warLeague) return mine.warLeague;
+
+  const counts = new Map();
+  for (const c of state.clans) {
+    if (!c.warLeague) continue;
+    counts.set(c.warLeague, (counts.get(c.warLeague) || 0) + 1);
+  }
+  let best = null;
+  for (const [name, n] of counts) if (!best || n > best[1]) best = [name, n];
+  return best ? best[0] : null;
+}
+
+/* ---------------- how big this CWL is ----------------
+ *
+ * Asked up front because everything downstream is sized by it, then confirmed
+ * against the game wherever the API can actually say.
+ *
+ * Two sources, strongest first:
+ *   teamSize on a war that has been fought — the game's own number, exact.
+ *   the signed-up roster in the league group — the leader picks exactly the
+ *     war size, so the largest roster in the group is that size.
+ *
+ * Both are snapped to 15 or 30: a clan that could not fill its roster would
+ * otherwise report 29 and size every line-up one player short. */
+function detectedWarSize() {
+  const rounds = state.rounds && state.rounds.clans;
+  if (Array.isArray(rounds)) {
+    for (const c of rounds) {
+      for (const r of c.rounds || []) {
+        if (r.teamSize) return normWarSize(r.teamSize);
+      }
+    }
+  }
+  return null;
+}
+
+/* Apply a size we are confident about, and say where it came from. Returns true
+   when it changed what the user had chosen — the caller surfaces that, because
+   silently moving a roster from 15 to 30 would be a bigger surprise than the
+   wrong number. */
+function applyWarSize(size, source) {
+  const next = normWarSize(size);
+  const changed = next !== Number(state.warSize);
+  state.warSize = next;
+  state.warSizeSource = source || null;
+  saveState();
+  renderWarSize();
+  if (changed) renderAll();
+  return changed;
 }
 
 /* Roster power from deep player data: the top N players who are actually
@@ -1552,9 +1646,43 @@ async function loadRosterFor(tag) {
   renderAssignments();
 }
 
-/* ---------------- events ---------------- */
-$g("leagueSelect").addEventListener("change", e => { state.league = e.target.value; saveState(); });
-$g("warSizeSelect").addEventListener("change", e => { state.warSize = Number(e.target.value); saveState(); renderAssignments(); });
+/* ---------------- season setup ---------------- */
+/* The two answers step 1 needs: how big the CWL is, and which league it is in.
+   One is asked, the other is read from the game. */
+function renderWarSize() {
+  const size = normWarSize(state.warSize);
+  $g("warSizeSeg").querySelectorAll("[data-size]").forEach((b) => {
+    const on = Number(b.dataset.size) === size;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+
+  // Where the size came from. Without this a size the API corrected looks
+  // identical to one that was never checked, and the user has no way to tell
+  // whether their answer still stands.
+  const note = $g("warSizeNote");
+  note.textContent = state.warSizeSource && state.warSizeSource !== "you"
+    ? `Confirmed by ${state.warSizeSource}`
+    : "";
+
+  const el = $g("leagueValue");
+  const league = groupLeague();
+  el.textContent = league || "Load your clan to detect it";
+  el.className = league ? "pill gold" : "muted";
+  el.title = league ? "From the game's own clan data" : "";
+}
+
+$g("warSizeSeg").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-size]");
+  if (!btn) return;
+  state.warSize = normWarSize(btn.dataset.size);
+  // A hand-set size is what the user asserts; the next confirmation from the
+  // API is still allowed to correct it.
+  state.warSizeSource = "you";
+  saveState();
+  renderWarSize();
+  renderAll();
+});
 
 $g("loadMyClanBtn").addEventListener("click", async () => {
   const tag = normTag($g("myClanTag").value);
@@ -1607,6 +1735,15 @@ $g("autoGroupBtn").addEventListener("click", async () => {
     if (!g.clans) throw new Error(g.reason === "notFound" ? "No active CWL group — wait for matchmaking." : "Group unavailable.");
     state.myTag = tag;
     state.clans = [];
+
+    // The league group carries each clan's signed-up roster, and the leader
+    // signs up exactly the war size — so the largest roster in the group is it.
+    // Largest rather than our own: a clan that came up short would otherwise
+    // size the whole season down.
+    const rosters = g.clans.map((c) => (c.members || []).length).filter(Boolean);
+    const sizeChanged = rosters.length
+      ? applyWarSize(Math.max(...rosters), "your CWL group") : false;
+
     let n = 0;
     for (const c of g.clans) {
       n++;
@@ -1618,7 +1755,8 @@ $g("autoGroupBtn").addEventListener("click", async () => {
     renderAll();
     msg("Building your roster…", "busy");
     await loadRosterFor(tag);
-    msg(`✔ Group loaded — ${state.clans.length} clans, ${state.roster.length} players.`, "ok");
+    msg(`✔ Group loaded — ${state.clans.length} clans, ${state.roster.length} players.`
+      + (sizeChanged ? ` This is a ${state.warSize}v${state.warSize} CWL, so the line-ups have been resized.` : ""), "ok");
   } catch (e) { msg("⚠️ " + e.message, "error"); }
   finally { setBusy(btn, false); }
 });
@@ -1637,10 +1775,10 @@ $g("saveManualBtn").addEventListener("click", () => {
     warLosses: 0,
     winStreak: Number($g("mStreak").value) || 0,
     avgTH: Number($g("mAvgTH").value) || null,
-    // No API data for a manual clan, so seed it with the group's league from
-    // Season setup. Everyone in a CWL group shares a league, which is a far
-    // better estimate than the neutral "unknown" score.
-    warLeague: state.league || null,
+    // No API data for a manual clan, so seed it with the group's league —
+    // read from your own clan, not guessed. Everyone in a CWL group shares a
+    // league, which is a far better estimate than the neutral "unknown" score.
+    warLeague: groupLeague(),
     members: [], live: false,
   });
   ["mName", "mTag", "mLevel", "mWins", "mStreak", "mAvgTH"].forEach(id => ($g(id).value = ""));
@@ -1650,7 +1788,11 @@ $g("saveManualBtn").addEventListener("click", () => {
 
 $g("clearGroupBtn").addEventListener("click", () => {
   if (!confirm("Clear the whole group and start a new season?")) return;
-  state = { league: state.league, warSize: state.warSize, myTag: "", clans: [], roster: [], assignments: {} };
+  // War size survives — it is a property of the season being set up, and asking
+  // for it again is the first thing a new season needs anyway. The league does
+  // not: it is read from the clan, and there is no clan any more.
+  state = { warSize: normWarSize(state.warSize), warSizeSource: state.warSizeSource,
+            myTag: "", clans: [], roster: [], assignments: {} };
   saveState(); renderAll();
 });
 
@@ -1748,8 +1890,16 @@ async function loadRounds() {
   $g("loadRoundsBtn").disabled = true;
   try {
     state.rounds = await apiGet("cwl-rounds", state.myTag);
-    saveState(); renderRounds();
-    roundsMsg(`✔ ${state.rounds.roundsAvailable} of ${state.rounds.totalRounds} rounds loaded.`, "ok");
+    saveState();
+    // A war that has actually been fought carries the game's own teamSize, which
+    // is the last word on how big this CWL is — better than the signed-up roster
+    // and better than anything the user can tell us. Read before anything is
+    // drawn: the size is data, and it should not depend on a render succeeding.
+    const size = detectedWarSize();
+    const changed = size ? applyWarSize(size, "a played round") : false;
+    renderRounds();
+    roundsMsg(`✔ ${state.rounds.roundsAvailable} of ${state.rounds.totalRounds} rounds loaded.`
+      + (changed ? ` These are ${state.warSize}v${state.warSize} wars — line-ups resized to match.` : ""), "ok");
   } catch (e) {
     roundsMsg("⚠️ " + e.message, "error");
   } finally {
@@ -1765,10 +1915,11 @@ function roundsMsg(text, kind) {
 
 $g("loadRoundsBtn").addEventListener("click", loadRounds);
 
-function renderAll() { renderClans(); renderAnalysis(); renderEligibility(); renderAssignments(); renderRounds(); }
+function renderAll() {
+  renderWarSize(); renderClans(); renderAnalysis();
+  renderEligibility(); renderAssignments(); renderRounds();
+}
 
 $g("myClanTag").value = state.myTag || "";
-$g("leagueSelect").value = state.league || "Master League I";
-$g("warSizeSelect").value = String(state.warSize || 15);
 renderAll();
 checkProxy();
