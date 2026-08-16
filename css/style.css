@@ -284,6 +284,13 @@ tr:last-child td { border-bottom: none; }
 
   /* Long values wrap instead of pushing the row wide. */
   td > * { min-width: 0; }
+
+  /* The expanded battle log is a PANEL, not a label/value pair, so it opts out
+     of the card treatment above: as a flex item it collapsed to the width of
+     its widest chip (~95px) and clipped the rows inside it. Blank cells in that
+     row would otherwise render as empty bordered strips. */
+  tr.elig-battles td { display: block; text-align: left; padding: 0 6px 6px; }
+  tr.elig-battles td:empty { display: none; }
 }
 
 /* ---------- hero cards ---------- */
@@ -584,7 +591,13 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
 
 @media (max-width: 700px) {
   /* Two columns of four figures will not fit a phone, so the sides stack. */
-  .bl-panel { grid-template-columns: 1fr; gap: 14px; }
+  .bl-panel { grid-template-columns: 1fr; gap: 14px; padding: 12px 10px; }
+
+  /* The timestamp is the only elastic figure here, so it takes the slack: at
+     fixed widths "15 hours ago" wrapped to three lines and stretched every row.
+     The three chips keep their size, since they are what the eye scans down. */
+  .bl-row { grid-template-columns: 46px 34px 52px minmax(0, 1fr); gap: 6px; }
+  .bl-when { text-align: right; white-space: nowrap; }
 }
 
 /* ---------- season history ---------- */
