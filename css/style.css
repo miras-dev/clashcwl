@@ -284,13 +284,6 @@ tr:last-child td { border-bottom: none; }
 
   /* Long values wrap instead of pushing the row wide. */
   td > * { min-width: 0; }
-
-  /* The expanded battle log is a PANEL, not a label/value pair, so it opts out
-     of the card treatment above: as a flex item it collapsed to the width of
-     its widest chip (~95px) and clipped the rows inside it. Blank cells in that
-     row would otherwise render as empty bordered strips. */
-  tr.elig-battles td { display: block; text-align: left; padding: 0 6px 6px; }
-  tr.elig-battles td:empty { display: none; }
 }
 
 /* ---------- hero cards ---------- */
@@ -552,17 +545,125 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
   .ore-chip { font-size: .88rem; padding: 5px 10px; }
 }
 
-/* ---------------- battle log panel ----------------
-   The battles behind a player's score, opened by clicking their row. Attacks
-   and defences sit side by side so a soft base shows up next to strong
-   offence rather than being buried under it. */
-.elig-clickable { cursor: pointer; }
-.elig-clickable:hover > td { background: var(--card2); }
-.elig-caret {
-  display: inline-block; margin-left: 6px; color: var(--muted);
-  font-size: .7rem; transition: transform .15s;
+/* ---------------- who should play CWL ----------------
+ *
+ * The product's centrepiece, and the one view most people open on a phone. It
+ * was a table, which the generic mobile treatment below turned into eight
+ * stacked label/value rows per player — about 700px each, so a single player
+ * filled the screen and a 50-member clan ran to forty screens of scrolling.
+ *
+ * It is now a list of cards that happens to line up as a table on a wide screen.
+ * The layout is one grid, redefined at the breakpoint: on desktop the figures
+ * are columns under a shared header row; on a phone they become chips carrying
+ * their own labels, and the card collapses to two lines — who, and the call.
+ *
+ * Everything that JUSTIFIES the call — the ranked battles behind the score, the
+ * league history behind those — lives in a panel that opens on tap. That is the
+ * whole scrolling budget: the evidence is one tap deep for the one player you
+ * are deciding about, rather than pre-scrolled for all fifty.
+ */
+.elig-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin: 14px 0 10px;
 }
-.elig-open .elig-caret { transform: rotate(90deg); }
+.seg { display: inline-flex; background: var(--bg2); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
+.seg-btn {
+  background: transparent; color: var(--muted); border: none;
+  font-size: .78rem; font-weight: 700; padding: 6px 12px; border-radius: 7px;
+}
+.seg-btn:hover { background: var(--card2); color: var(--text); }
+.seg-btn.is-on, .seg-btn.is-on:hover { background: var(--card2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
+
+/* The single grid the header row and every card share, so the figures line up
+   down the list without any of them being a real table cell. */
+.elig-head, .elig-summary {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 44px 56px 50px 158px 84px 60px 18px;
+  gap: 9px; align-items: center;
+}
+.elig-head {
+  padding: 0 12px 8px;
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+}
+.elig-list { display: flex; flex-direction: column; gap: 8px; }
+/* The suggested-only view. A filter, never a re-rank — the numbering in the
+   cards is the full-clan ranking either way. */
+.elig-list.only-picks .elig-bench { display: none; }
+
+.elig-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+}
+/* Everyone outside the suggested line-up is still readable — they are the
+   players you might substitute in — just clearly not the recommendation. */
+.elig-bench { opacity: .62; }
+.elig-pick { border-color: rgba(61, 220, 132, .35); }
+
+.elig-summary {
+  width: 100%; padding: 10px 12px; text-align: left;
+  background: transparent; color: inherit; border: 0; border-radius: 0;
+  font: inherit;
+}
+button.elig-summary { cursor: pointer; }
+button.elig-summary:hover { background: var(--card2); }
+button.elig-summary:focus-visible { outline: 2px solid var(--primary-text); outline-offset: -2px; }
+.elig-summary > *, .elig-figures > * { min-width: 0; grid-row: 1; }
+/* On desktop the wrapper is a pass-through so its figures sit in the card's own
+   grid as columns; on a phone it becomes a real box and they wrap as chips. */
+.elig-figures { display: contents; }
+
+.elig-rank { grid-column: 1; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.elig-id { grid-column: 2; display: flex; flex-direction: column; gap: 3px; }
+/* Clash names have no spaces to break at — "xX_DestroyerOfWorlds_Xx" is one
+   word — so the name is allowed to break mid-string rather than run under the
+   score sitting to its right. */
+.elig-name {
+  font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.elig-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: .75rem; color: var(--muted); }
+.elig-tag { font-variant-numeric: tabular-nums; }
+.elig-tag::before { content: "·"; margin-right: 6px; }
+.elig-p { color: var(--green); border-color: var(--green); font-size: .68rem; padding: 2px 8px; }
+
+.fig { display: flex; flex-direction: column; gap: 1px; }
+/* The label is in the markup for the phone layout; on desktop the header row
+   above the list says the same thing once instead of fifty times. */
+.fig i { display: none; }
+.fig b { font-weight: 700; font-size: .86rem; font-variant-numeric: tabular-nums; }
+.fig-atk b, .fig-ev b, .fig-win b { font-weight: 600; font-size: .78rem; }
+.fig-ev b, .fig-win b { white-space: nowrap; }
+.fig-atk b, .fig-win b { color: var(--muted); }
+.fig.muted b { color: var(--muted); }
+.fig-em { color: var(--text); font-weight: 700; }
+.elig-score { grid-column: 4; }
+.elig-score b { font-size: 1.05rem; }
+.elig-unrated { font-size: .74rem; }
+.fig-th { grid-column: 3; }
+.fig-th b { color: var(--gold); }
+.fig-form { grid-column: 5; }
+.fig-atk { grid-column: 6; }
+.fig-ev { grid-column: 7; }
+.fig-win { grid-column: 8; }
+
+.elig-caret {
+  grid-column: 9; color: var(--muted); font-size: .72rem;
+  transition: transform .15s; text-align: right;
+}
+.elig-card.is-open .elig-caret { transform: rotate(90deg); }
+
+/* The call, in the verdict's own colour, directly under the numbers it is
+   drawn from. */
+.elig-verdict {
+  display: flex; gap: 8px; align-items: baseline;
+  margin: 0 12px 10px; padding: 7px 10px;
+  border-left: 3px solid var(--v); border-radius: 0 8px 8px 0;
+  background: var(--bg2);
+}
+.v-chip { flex: none; color: var(--v); font-weight: 800; font-size: .8rem; }
+.v-text { color: var(--muted); font-size: .8rem; line-height: 1.5; }
+
+.elig-detail { padding: 0 12px 12px; }
 
 .bl-panel {
   display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
@@ -588,6 +689,14 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
 .bl-stars { color: var(--muted); }
 .bl-stars.full { color: var(--gold); }
 .bl-when { font-size: .74rem; }
+/* The rest of an unbounded log. A clan with collected history has hundreds of
+   battles per player, and the recent ones are what answer "are they playing"; the
+   older ones are for checking, so they cost a tap rather than a screen. */
+.bl-more {
+  background: transparent; color: var(--muted); border: none;
+  font-size: .74rem; font-weight: 700; padding: 6px 0 2px;
+}
+.bl-more:hover { background: transparent; color: var(--text); text-decoration: underline; }
 
 @media (max-width: 700px) {
   /* Two columns of four figures will not fit a phone, so the sides stack. */
@@ -639,11 +748,83 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
 .season-place { color: var(--gold); }
 .season-count { color: var(--muted); font-weight: 600; }
 .season-count.full { color: var(--green); }
-.season-note { margin: 12px 0 0; line-height: 1.5; }
+/* The caveats matter — trophies do not compare across leagues — but they are
+   read once, not on every visit, so they fold away rather than adding a
+   paragraph under every player. */
+.season-note { margin: 10px 0 0; }
+.season-note summary { font-size: .76rem; }
+.season-note p { margin-top: 6px; line-height: 1.5; }
 
 @media (max-width: 700px) {
-  /* Attacks used is the first thing to go: it is context here, where trophies
-     and placement are what the panel is for. */
-  .season-row, .season-cols { grid-template-columns: 1fr 76px 60px; }
-  .season-row > .season-count, .season-cols > span:last-child { display: none; }
+  /* All four figures stay: attacks used is the reliability signal this panel is
+     opened for — whether they finish their seasons — and it is the only column
+     here that means the same thing in every league. Tightened instead of
+     dropped, since none of them need the width they had. */
+  .season-row, .season-cols { grid-template-columns: minmax(0, 1fr) 56px 38px 56px; gap: 6px; }
+  .season-troph, .season-place, .season-count { white-space: nowrap; }
+  /* The letter-spacing that gives these headings their tone at full width is
+     what makes them wrap here, so it goes rather than the columns. */
+  .season-cols { font-size: .58rem; letter-spacing: 0; }
+  .season-row { font-size: .78rem; }
+  .season-panel { padding: 12px 10px; }
+}
+
+/* ---------------- who should play CWL, on a phone ----------------
+   The card folds from a nine-column row into two lines: identity and score on
+   top, the figures as labelled chips below. The header row goes away with it —
+   at this width the labels ride on the chips instead.
+
+   This breaks earlier than the 700px used elsewhere on purpose. Eight columns
+   of figures need about 600px between them, so from roughly 900px down the name
+   column is squeezed to nothing and ordinary handles wrap mid-word — the cards
+   read better than a table long before the screen is phone-sized. */
+@media (max-width: 900px) {
+  .elig-head { display: none; }
+  .elig-hint { display: none; }
+
+  .elig-summary {
+    grid-template-columns: 22px minmax(0, 1fr) auto 14px;
+    grid-template-areas:
+      "rank id    score caret"
+      "figs figs  figs  figs";
+    gap: 8px 9px; padding: 10px 11px;
+  }
+  /* Row 1 is fixed by area; the figures below flow and wrap. */
+  .elig-summary > *, .elig-figures > * { grid-row: auto; grid-column: auto; }
+  .elig-rank { grid-area: rank; }
+  .elig-id { grid-area: id; }
+  .elig-score { grid-area: score; text-align: right; align-items: flex-end; }
+  .elig-caret { grid-area: caret; align-self: center; }
+  .elig-figures { grid-area: figs; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .elig-figures > .fig {
+    flex: 0 0 auto; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px 8px; gap: 0;
+  }
+  .fig i {
+    display: block; font-size: .58rem; letter-spacing: .08em;
+    text-transform: uppercase; font-style: normal; color: var(--muted);
+  }
+  .fig b, .fig-atk b, .fig-ev b, .fig-win b { font-size: .78rem; }
+
+  /* The score is the answer to "should this player be in", so it gets the
+     weight a column heading used to carry for it. After the chip sizes above,
+     which it would otherwise lose to at equal specificity. */
+  .elig-score i { text-align: right; }
+  .elig-score b { font-size: 1.5rem; line-height: 1.05; }
+  .elig-score .elig-unrated { font-size: .72rem; }
+
+  /* The tag is how you tell two accounts with the same name apart, which is a
+     question you ask about one player, not while scanning fifty — so it moves
+     into the opened card rather than taking a line in every one. */
+  .elig-card:not(.is-open) .elig-tag { display: none; }
+
+  /* Collapsed, the rationale is a two-line trailer for the verdict; opened, it
+     is the argument in full. Same text either way — nothing is duplicated into
+     a second panel that could drift from this one. */
+  .elig-verdict { margin: 0 11px 10px; }
+  .elig-card:not(.is-open) .v-text {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .elig-detail { padding: 0 11px 11px; }
 }

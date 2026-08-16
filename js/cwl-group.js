@@ -184,6 +184,19 @@ function strengthColor(s) {
   return "var(--green)";
 }
 
+/* The same 0-100 scale, read the other way round.
+ *
+ * strengthColor grades OPPONENTS, where a high number is a threat and so shows
+ * red. Our own players are graded on form, where a high number is exactly what
+ * you want — running them through strengthColor painted the clan's best pick a
+ * warning red directly above a green "Pick" verdict. The cutoffs match the
+ * verdict thresholds in explain(), so the colour and the call always agree. */
+function formColor(s) {
+  if (s >= 70) return "var(--green)";
+  if (s >= 45) return "var(--gold)";
+  return "var(--red)";
+}
+
 
 /* ---------------- busy / loading feedback ----------------
    Deep clan fetches take ~20s (every member's profile). Without a visible
@@ -584,6 +597,16 @@ function agoLabel(date) {
   return `${Math.round(d)}d`;
 }
 
+/* How many battles a column shows before the rest are folded away.
+ *
+ * The list is unbounded: the live buffer holds ~50 battles of every type, and a
+ * clan with collected history (scripts/collect-battles.mjs) accumulates hundreds
+ * per player. Printing all of them turned one expanded player into several
+ * screens of scrolling on a phone, which is the opposite of what the panel is
+ * for — the recent battles are the ones that tell you whether someone is playing
+ * this week. The older ones stay one tap away rather than being dropped. */
+const BATTLES_SHOWN = 6;
+
 /* Every ranked battle behind a player's score, attacks beside defences.
    The score says how they are doing; this says what actually happened, which is
    the difference between trusting the number and checking it.
@@ -607,10 +630,18 @@ function battleLogPanel(summary) {
     <span class="bl-when muted">${escG(agoLabel(b.timestamp))}</span>
   </div>`;
 
-  const col = (label, list, empty, highlight) => `<div class="bl-col">
-    <div class="bl-head">${label} <span class="muted small">${list.length}</span></div>
-    ${list.length ? list.map(row(highlight)).join("") : `<div class="muted small" style="padding:6px 2px">${empty}</div>`}
-  </div>`;
+  const col = (label, list, empty, highlight) => {
+    const rows = list.map(row(highlight));
+    const shown = rows.slice(0, BATTLES_SHOWN);
+    const rest = rows.slice(BATTLES_SHOWN);
+    return `<div class="bl-col">
+      <div class="bl-head">${label} <span class="muted small">${list.length}</span></div>
+      ${list.length ? shown.join("") : `<div class="muted small" style="padding:6px 2px">${empty}</div>`}
+      ${rest.length ? `<div class="bl-rest" hidden>${rest.join("")}</div>
+        <button type="button" class="bl-more" aria-expanded="false"
+          data-more="${rest.length} older">+${rest.length} older</button>` : ""}
+    </div>`;
+  };
 
   return `<div class="bl-panel">
     ${col("Attacks", attacks, "No attacks in this window.", (n) => n === 3)}
@@ -637,7 +668,7 @@ function battleLogPanel(summary) {
 function seasonPanel(seasons) {
   if (!seasons || !seasons.hasData) {
     return `<div class="season-panel">
-      <div class="bl-head">Season history</div>
+      <div class="bl-head">League history</div>
       <p class="muted small" style="margin:0">No completed ranked seasons on record —
         either a new account, or the API has no league history for them.</p>
     </div>`;
@@ -691,16 +722,104 @@ function seasonPanel(seasons) {
   }).join("");
 
   return `<div class="season-panel">
-    <div class="bl-head">Season history
+    <div class="bl-head">League history
       <span class="muted small" style="font-weight:600">— where they finished, by league</span>
     </div>
     <div class="season-groups">${blocks}</div>
-    <p class="muted small season-note">
-      Ranked seasons only, most recent first, grouped by league. Trophies compare
-      only within one league — the API publishes no trophy cutoffs, so a total from
-      one tier says nothing against another. Star counts are omitted because the
-      endpoint returns zero for them on every account.</p>
+    <details class="season-note">
+      <summary>How to read this</summary>
+      <p class="muted small">
+        Ranked seasons only, most recent first, grouped by league. Trophies compare
+        only within one league — the API publishes no trophy cutoffs, so a total from
+        one tier says nothing against another. Star counts are omitted because the
+        endpoint returns zero for them on every account.</p>
+    </details>
   </div>`;
+}
+
+/* One figure in a player's card: a label and a value.
+ *
+ * The label is carried on every card rather than only in a header row, because
+ * on a phone there IS no header row — the cards stack and the columns become
+ * chips. On desktop the labels are hidden and the header row above the list
+ * names the columns instead, so the same markup reads as a table there. */
+function eligFigure(cls, label, value, extra = "") {
+  return `<span class="fig ${cls}${extra ? " " + extra : ""}"><i>${escG(label)}</i><b>${value}</b></span>`;
+}
+
+/* One player, as a card that opens.
+ *
+ * Collapsed it is the decision — rank, who, league, score and the call — in a
+ * fixed two-line block. Everything that justifies the decision (the ranked
+ * battles behind the score, and the league history behind those) is folded into
+ * the panel below and only rendered into view when the card is opened. On a
+ * phone that is the difference between one player per screen and six. */
+function eligibilityCard(m, inRoster) {
+  const s = m.summary;
+  const conf = confidenceLabel(m.confidence);
+  // The verdict drives the colour, not the score: a 55 can be a strong Legend I
+  // attacker with few attacks on record, or someone coasting below par, and
+  // those want opposite decisions.
+  const v = VERDICT[m.verdict] || VERDICT.no;
+
+  // An unrated player has no score to show. A bare 0 would read as a judgement
+  // rather than a gap in the data, so it says which it is.
+  const score = m.rated
+    ? `<span style="color:${formColor(m.score)}">${m.score}</span>`
+    : `<span class="muted elig-unrated">unrated</span>`;
+
+  // Form is the headline number, so an absent one has to read as "unknown"
+  // rather than as a low score.
+  const form = m.formScore == null
+    ? `<span class="muted">—</span>`
+    : `<span style="color:${formColor(m.formScore)}">${m.formScore}</span>`;
+
+  // Show the average against its league's par, or "+38 avg" alone invites the
+  // exact misreading this whole model exists to prevent — that a big number in
+  // an easy league beats a smaller one under Legend I's modifiers.
+  const attacks = s.hasData
+    ? `${s.attackCount} atk${s.avgAttackGain
+        ? ` · <span class="fig-em">+${s.avgAttackGain.toFixed(0)}</span> vs par ${m.expectedGain}` : ""}`
+    : `<span class="muted">no log</span>`;
+
+  // Rows without a readable log have nothing to open, so they are a plain block
+  // rather than a button that would promise a panel we cannot fill.
+  const openable = s.hasData;
+  const panelId = `elig-panel-${escG(m.tag).replace(/[^A-Za-z0-9]/g, "")}`;
+  const tag = openable ? "button" : "div";
+  const handle = openable
+    ? ` type="button" data-battles="${escG(m.tag)}" aria-expanded="false" aria-controls="${panelId}"`
+    : "";
+
+  return `<article class="elig-card${inRoster ? " elig-pick" : " elig-bench"}">
+    <${tag} class="elig-summary"${handle}>
+      <span class="elig-rank">${m.rank}</span>
+      <span class="elig-id">
+        <span class="elig-name">${escG(m.name)}${inRoster
+          ? `<span class="pill elig-p" title="${escG(m.bandLabel || "")}">P${m.band}</span>` : ""}</span>
+        <span class="elig-sub">${m.leagueTier
+          ? leagueBadge(m.leagueTier, { compact: true })
+          : `<span class="muted">Unranked</span>`}<span class="elig-tag">${escG(m.tag)}</span></span>
+      </span>
+      ${eligFigure("elig-score", "Score", score)}
+      <span class="elig-figures">
+        ${eligFigure("fig-form", "Form", form)}
+        ${eligFigure("fig-atk", "Ranked vs par", attacks)}
+        ${eligFigure("fig-th", "TH", String(m.thLevel || "?"))}
+        ${eligFigure("fig-ev", "Evidence", escG(conf.text), conf.cls)}
+        ${eligFigure("fig-win", "Window", s.windowDays ? s.windowDays.toFixed(1) + "d" : "—")}
+      </span>
+      <span class="elig-caret" aria-hidden="true">${openable ? "▸" : ""}</span>
+    </${tag}>
+    <div class="elig-verdict" style="--v:${v.color}">
+      <span class="v-chip">${v.label}</span>
+      <span class="v-text">${escG(m.rationale)}</span>
+    </div>
+    ${openable ? `<div class="elig-detail" id="${panelId}" hidden>
+      ${battleLogPanel(s)}
+      <div class="season-mount" data-for="${escG(m.tag)}"></div>
+    </div>` : ""}
+  </article>`;
 }
 
 function renderEligibility() {
@@ -709,65 +828,9 @@ function renderEligibility() {
   if (!show || !eligibility) return;
 
   const suggested = new Set(eligibility.suggested);
-  const rows = eligibility.members.map((m) => {
-    const s = m.summary;
-    const conf = confidenceLabel(m.confidence);
-    const inRoster = suggested.has(m.tag);
-
-    // Form is the headline number, so an absent one has to read as "unknown"
-    // rather than as a low score.
-    const formCell = m.formScore == null
-      ? `<span class="muted">—</span>`
-      : `<strong style="color:${strengthColor(m.formScore)}">${m.formScore}</strong>`;
-
-    // Show the average against its league's par, or "+38 avg" alone invites the
-    // exact misreading this whole model exists to prevent — that a big number in
-    // an easy league beats a smaller one under Legend I's modifiers.
-    const attacks = s.hasData
-      ? `${s.attackCount} atk${s.avgAttackGain
-          ? ` · +${s.avgAttackGain.toFixed(0)} vs par ${m.expectedGain}` : ""}`
-      : "no log";
-
-    // An unrated player has no score to show. A bare 0 would read as a
-    // judgement rather than a gap in the data.
-    const scoreCell = m.rated
-      ? `<strong style="color:${strengthColor(m.score)}">${m.score}</strong>`
-      : `<span class="muted small">unrated</span>`;
-
-    // The verdict drives the colour, not the score: a 55 can be a strong Legend I
-    // attacker with few attacks on record, or someone coasting below par, and
-    // those want opposite decisions.
-    const v = VERDICT[m.verdict] || VERDICT.no;
-
-    return `<tr class="elig-row${s.hasData ? " elig-clickable" : ""}" ${s.hasData ? `data-battles="${escG(m.tag)}"` : ""} style="${inRoster ? "" : "opacity:.55"}">
-      <td class="muted">${m.rank}</td>
-      <td><strong>${escG(m.name)}</strong>
-        ${inRoster ? `<span class="pill" style="color:var(--green); border-color:var(--green)">P${m.band}</span>` : ""}
-        ${s.hasData ? `<span class="elig-caret" aria-hidden="true">▸</span>` : ""}
-        <div class="muted small">${escG(m.tag)}${m.leagueTier
-          ? ` · ${leagueBadge(m.leagueTier, { compact: true })}` : ""}</div></td>
-      <td><span class="player-chip"><span class="th">TH${m.thLevel || "?"}</span></span></td>
-      <td>${scoreCell}</td>
-      <td>${formCell}</td>
-      <td class="muted small">${escG(attacks)}</td>
-      <td class="small ${conf.cls}">${conf.text}</td>
-      <td class="muted small">${s.windowDays ? s.windowDays.toFixed(1) + "d" : "—"}</td>
-    </tr>
-    <tr style="${inRoster ? "" : "opacity:.55"}">
-      <td></td>
-      <td colspan="7" class="small" style="padding-top:0; border-top:none">
-        <div style="border-left:3px solid ${v.color}; padding-left:10px">
-          <strong style="color:${v.color}">${v.label}</strong>
-          <span class="muted"> — ${escG(m.rationale)}</span>
-        </div>
-      </td>
-    </tr>
-    ${s.hasData ? `<tr class="elig-battles" data-for="${escG(m.tag)}" hidden>
-      <td></td>
-      <td colspan="7" style="padding-top:0; border-top:none">${battleLogPanel(s)}
-        <div class="season-mount" data-for="${escG(m.tag)}"></div></td>
-    </tr>` : ""}`;
-  }).join("");
+  const cards = eligibility.members
+    .map((m) => eligibilityCard(m, suggested.has(m.tag)))
+    .join("");
 
   // Which data the ranking is standing on. Without this the window column looks
   // arbitrary — "1.9d" and "12.4d" side by side with no explanation of why.
@@ -802,32 +865,86 @@ function renderEligibility() {
          suggested ${state.warSize}; include them by judgement if you know they play.</p>`
     : "";
 
-  $g("eligibilityList").innerHTML = `
+  // Fifty cards is a long list to thumb through when the question is usually
+  // "who are my fifteen". The filter is a view, not a re-rank: the ranking and
+  // the numbering are untouched, so a hidden player is one tap away rather than
+  // gone. It defaults to everyone, because a list that silently omits members
+  // would misrepresent the clan to anyone who did not notice the switch.
+  const filter = `<div class="elig-toolbar">
+    <div class="seg" role="group" aria-label="Which players to show">
+      <button type="button" class="seg-btn is-on" data-filter="all"
+        aria-pressed="true">All ${eligibility.members.length}</button>
+      <button type="button" class="seg-btn" data-filter="pick"
+        aria-pressed="false">Suggested ${eligibility.suggested.length}</button>
+    </div>
+    <span class="muted small elig-hint">Tap a player for their ranked round and league history</span>
+  </div>`;
+
+  const list = $g("eligibilityList");
+  list.innerHTML = `
     <p class="muted small">Grouped by league, hardest first — every Legend I player, then
       Legend II, and so on — and by score within each league. The
-      ${eligibility.suggested.length} highlighted rows are the strongest by score regardless
+      ${eligibility.suggested.length} highlighted players are the strongest by score regardless
       of league, for war size ${state.warSize}.</p>
     ${glossaryHtml()}
-    <table style="margin-top:10px"><thead><tr>
-      <th>#</th><th>Player</th><th>TH</th><th>Score</th><th>Form</th>
-      <th>Ranked attacks vs league par</th><th>Evidence</th><th>Window</th>
-    </tr></thead><tbody>${rows}</tbody></table>${sourceNote}${truncWarn}${warn}`;
+    ${filter}
+    <div class="elig-head" aria-hidden="true">
+      <span>#</span><span>Player</span><span>TH</span><span>Score</span><span>Form</span>
+      <span>Ranked attacks vs league par</span><span>Evidence</span><span>Window</span><span></span>
+    </div>
+    <div class="elig-list">${cards}</div>${sourceNote}${truncWarn}${warn}`;
 
-  // Clicking a player opens the battles behind their score. Rows without a
-  // readable log carry no handle, so there is nothing to open on a player we
-  // could not measure.
-  $g("eligibilityList").querySelectorAll("[data-battles]").forEach((tr) => {
-    tr.addEventListener("click", () => {
-      const tag = tr.dataset.battles;
-      const panel = $g("eligibilityList").querySelector(`.elig-battles[data-for="${CSS.escape(tag)}"]`);
-      if (!panel) return;
-      panel.hidden = !panel.hidden;
-      tr.classList.toggle("elig-open", !panel.hidden);
-      // Season history is one API call per player, so it is fetched the first
-      // time someone actually looks rather than for all 50 members on load.
-      if (!panel.hidden) loadSeasons(tag);
+  // One delegated listener rather than one per card: the list is rebuilt whole
+  // on every render, and per-node listeners on 50 cards plus their battle-log
+  // buttons is a lot of bookkeeping for behaviour that is entirely positional.
+  // The container outlives the render and the handler is a stable reference, so
+  // re-adding it on every render is a no-op rather than a second subscription.
+  list.addEventListener("click", onEligibilityClick);
+}
+
+function onEligibilityClick(e) {
+  const list = e.currentTarget;
+
+  // Older battles inside an already-open card. Checked first: it sits inside the
+  // detail panel, so letting the summary handler see it would close the card the
+  // user is trying to read more of.
+  const more = e.target.closest(".bl-more");
+  if (more) {
+    const rest = more.parentNode.querySelector(".bl-rest");
+    if (!rest) return;
+    rest.hidden = !rest.hidden;
+    more.setAttribute("aria-expanded", String(!rest.hidden));
+    more.textContent = rest.hidden ? `+${more.dataset.more}` : "Show fewer";
+    return;
+  }
+
+  // Which players to show. Purely a display filter — see the note above.
+  const seg = e.target.closest(".seg-btn");
+  if (seg) {
+    list.querySelectorAll(".seg-btn").forEach((b) => {
+      const on = b === seg;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-pressed", String(on));
     });
-  });
+    list.querySelector(".elig-list").classList.toggle("only-picks", seg.dataset.filter === "pick");
+    return;
+  }
+
+  // Opening a player. The ranked battles and the league history behind their
+  // score are the point of the page, but they are also the bulk of its height,
+  // so they stay folded until someone asks for one player in particular.
+  const head = e.target.closest("[data-battles]");
+  if (!head) return;
+  const card = head.closest(".elig-card");
+  const panel = card && card.querySelector(".elig-detail");
+  if (!panel) return;
+
+  panel.hidden = !panel.hidden;
+  card.classList.toggle("is-open", !panel.hidden);
+  head.setAttribute("aria-expanded", String(!panel.hidden));
+  // League history is one API call per player, so it is fetched the first time
+  // someone actually looks rather than for all 50 members on load.
+  if (!panel.hidden) loadSeasons(head.dataset.battles);
 }
 
 /* Season history for one player, fetched on first expand.
@@ -848,8 +965,8 @@ async function loadSeasons(tag) {
 
   if (seasonCache.has(tag)) { render(seasonCache.get(tag)); return; }
 
-  mount.innerHTML = `<div class="season-panel"><div class="bl-head">Season reliability</div>
-    <p class="muted small" style="margin:0">Loading season history…</p></div>`;
+  mount.innerHTML = `<div class="season-panel"><div class="bl-head">League history</div>
+    <p class="muted small" style="margin:0">Loading league history…</p></div>`;
 
   try {
     const raw = await apiGet("leaguehistory", tag.replace(/^#/, ""));
@@ -860,8 +977,8 @@ async function loadSeasons(tag) {
     // A failure here costs the reliability panel, nothing else — the score and
     // battle log above it stand on their own, so it says so rather than
     // implying the player has no history.
-    mount.innerHTML = `<div class="season-panel"><div class="bl-head">Season reliability</div>
-      <p class="muted small" style="margin:0">Could not load season history — ${escG(e.message)}.
+    mount.innerHTML = `<div class="season-panel"><div class="bl-head">League history</div>
+      <p class="muted small" style="margin:0">Could not load league history — ${escG(e.message)}.
       The form above is unaffected.</p></div>`;
     delete mount.dataset.loaded;   // let a retry happen on the next expand
   }
