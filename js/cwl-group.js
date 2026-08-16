@@ -1646,6 +1646,58 @@ async function loadRosterFor(tag) {
   renderAssignments();
 }
 
+/* ---------------- is CWL running? ----------------
+ *
+ * Clan War Leagues run on a fixed monthly cycle: sign-up opens on the 1st, the
+ * seven war days follow, and it is over by about the 10th. For the other twenty
+ * days of the month there is no group to scout, no rounds to pull and no war
+ * day to plan — so those sections are folded away instead of standing empty
+ * with a "Load round history" button that can only fail.
+ *
+ * The date is a heuristic, not a fact, so it never overrides evidence:
+ *
+ *   a group that has been built     — more than your own clan is loaded
+ *   rounds that have been pulled    — those came from a real league group
+ *   the user saying so              — "Set up anyway", which sticks
+ *
+ * Any of those means CWL is running for this user whatever the calendar says,
+ * and the alternative — hiding a season someone is in the middle of planning —
+ * would be far worse than showing an empty section for a day.
+ *
+ * Step 4 stays visible year-round on purpose. Ranked form is exactly what you
+ * want to know BEFORE sign-ups open, and it is the one thing here that does not
+ * need a live CWL to answer. */
+const CWL_LAST_DAY = 11;   // wars end around the 10th; one day of slack
+
+function cwlActive() {
+  if (state.planAnyway) return true;
+  if (state.rounds) return true;
+  if (state.clans.length > 1) return true;
+  return new Date().getDate() <= CWL_LAST_DAY;
+}
+
+/* When the next CWL starts, in the reader's own locale. */
+function nextCwlLabel() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const days = Math.ceil((next - now) / 86400000);
+  return `Sign-ups open on the 1st — about ${days} day${days === 1 ? "" : "s"} away. `
+    + `Step 4 works year-round, so you can have your line-up settled before then.`;
+}
+
+function renderSeasonState() {
+  const on = cwlActive();
+  $g("offSeasonNote").style.display = on ? "none" : "block";
+  $g("groupSection").style.display = on ? "block" : "none";
+  if (!on) $g("offSeasonWhen").textContent = nextCwlLabel();
+}
+
+$g("planAnywayBtn").addEventListener("click", () => {
+  state.planAnyway = true;
+  saveState();
+  renderAll();
+});
+
 /* ---------------- season setup ---------------- */
 /* The two answers step 1 needs: how big the CWL is, and which league it is in.
    One is asked, the other is read from the game. */
@@ -1807,7 +1859,8 @@ $g("clearAssignBtn").addEventListener("click", () => { state.assignments = {}; s
    is everyone in it; this is the 15 (or 30) they chose to put in a war. */
 function renderRounds() {
   const d = state.rounds;
-  $g("roundsSection").style.display = state.myTag ? "block" : "none";
+  // Needs a clan to pull rounds for, and a CWL for those rounds to exist in.
+  $g("roundsSection").style.display = state.myTag && cwlActive() ? "block" : "none";
   if (!d) return;
 
   const mine = normTag(state.myTag);
@@ -1916,7 +1969,7 @@ function roundsMsg(text, kind) {
 $g("loadRoundsBtn").addEventListener("click", loadRounds);
 
 function renderAll() {
-  renderWarSize(); renderClans(); renderAnalysis();
+  renderSeasonState(); renderWarSize(); renderClans(); renderAnalysis();
   renderEligibility(); renderAssignments(); renderRounds();
 }
 

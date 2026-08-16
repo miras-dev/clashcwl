@@ -153,8 +153,23 @@
       </p>
     </div>
 
+    <!-- Off-season notice. CWL runs for roughly the first ten days of the
+         month; the rest of the time the group, the round history and the
+         war-day plan have nothing behind them, so they are folded away rather
+         than sitting there empty. Step 4 is not: ranked form is what you want
+         to know BEFORE sign-ups open. -->
+    <div id="offSeasonNote" class="card" style="display:none">
+      <div class="row" style="justify-content:space-between; gap:14px">
+        <div style="min-width:0">
+          <h3 style="margin:0 0 4px">CWL isn’t running right now</h3>
+          <p class="muted small" style="margin:0" id="offSeasonWhen"></p>
+        </div>
+        <button id="planAnywayBtn" class="secondary" style="flex:none">Set up anyway</button>
+      </div>
+    </div>
+
     <!-- ── Step 2: opponents ────────────────────────────────── -->
-    <div class="card">
+    <div class="card" id="groupSection">
       <h3>2 · The 8 clans in your group</h3>
       <div class="row" style="margin-top:10px">
         <input type="text" id="opponentTag" placeholder="#OPPONENTTAG" style="max-width:220px" />
