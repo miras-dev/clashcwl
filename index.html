@@ -129,18 +129,6 @@
         </div>
       </div>
 
-      <!-- Read-only: the war league comes from GET /clans/{tag} on your own
-           clan, so it cannot disagree with the game. It used to be a dropdown
-           of 22 leagues that only ever fed the strength model — a wrong guess
-           there silently skewed every promotion estimate. -->
-      <div class="setup-q">
-        <div class="setup-label">
-          <strong>War league</strong>
-          <span class="muted small">Read from the game, not chosen</span>
-        </div>
-        <span id="leagueValue" class="muted">Load your clan to detect it</span>
-      </div>
-
       <label for="myClanTag">Your clan tag</label>
       <div class="row">
         <input type="text" id="myClanTag" placeholder="#YOURCLAN" style="max-width:220px" />
@@ -151,6 +139,13 @@
         “Auto-detect group” works once the CWL round has been matched and needs the live proxy —
         otherwise add the 7 opponent tags manually below.
       </p>
+
+      <!-- Your clan, once it is loaded. The group table below is the eight of
+           you ranked against each other and disappears out of season; this is
+           who YOU are, so it belongs in step 1 and stays all month. The war
+           league lives here rather than in a dropdown — it is read from the
+           game, so it cannot disagree with it. -->
+      <div id="myClanCard" class="myclan" style="display:none"></div>
     </div>
 
     <!-- Off-season notice. CWL runs for roughly the first ten days of the

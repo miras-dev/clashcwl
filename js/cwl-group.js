@@ -1743,12 +1743,62 @@ function renderWarSize() {
   note.textContent = state.warSizeSource && state.warSizeSource !== "you"
     ? `Confirmed by ${state.warSizeSource}`
     : "";
+}
 
-  const el = $g("leagueValue");
-  const league = groupLeague();
-  el.textContent = league || "Load your clan to detect it";
-  el.className = league ? "pill gold" : "muted";
-  el.title = league ? "From the game's own clan data" : "";
+/* ---------------- your own clan ----------------
+ *
+ * Everything the API already tells us about the clan you are planning for.
+ *
+ * All of it used to live in the group table — which is the eight of you ranked
+ * against each other, and which now folds away out of season. That took your
+ * clan's own name, badge and record with it, leaving a page addressed to
+ * nobody: a tag in a text box and a league pill with no clan attached. This is
+ * a different question from "how does my group compare", so it gets its own
+ * place in step 1 and stays there all month.
+ *
+ * clan-deep returns all of this in the call the page already makes, so none of
+ * it costs a request. */
+function renderMyClan() {
+  const el = $g("myClanCard");
+  const c = state.clans.find((x) => normTag(x.tag) === normTag(state.myTag));
+  if (!c) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+  el.style.display = "block";
+
+  const stat = (label, value) => (value == null || value === "" ? ""
+    : `<span class="stat"><i>${escG(label)}</i><b>${value}</b></span>`);
+
+  // Wins are published for every clan; losses and ties only when the war log is
+  // public. Showing "220W / 0L" for a private log would invent a perfect record.
+  const record = c.isWarLogPublic && (c.warLosses || c.warTies)
+    ? `${c.warWins ?? 0}W · ${c.warLosses ?? 0}L`
+    : (c.warWins ?? null);
+
+  el.innerHTML = `
+    <div class="myclan-head">
+      ${c.badge ? `<img class="myclan-badge" src="${escG(c.badge)}" alt="" width="46" height="46"
+           loading="lazy" onerror="this.style.display='none'">` : ""}
+      <span class="myclan-id">
+        <strong>${escG(c.name)}</strong>
+        <span class="muted small">${escG(c.tag)}${c.location ? ` · ${escG(c.location)}` : ""}</span>
+      </span>
+      ${c.warLeague
+        ? `<span class="pill gold" title="Read from the game, not chosen">${escG(c.warLeague)}</span>`
+        : ""}
+      ${c.isWarLogPublic === false
+        ? `<span class="pill" title="Only war wins are published for this clan">war log private</span>` : ""}
+    </div>
+    <div class="stat-rail">
+      ${stat("Level", c.level)}
+      ${stat("Members", c.memberCount)}
+      ${stat("Avg TH", c.avgTH)}
+      ${stat("War wins", record)}
+      ${stat("Win streak", c.winStreak ? `🔥 ${c.winStreak}` : "—")}
+      ${stat("Clan points", c.clanPoints ? c.clanPoints.toLocaleString() : null)}
+    </div>`;
 }
 
 $g("warSizeSeg").addEventListener("click", (e) => {
@@ -1996,7 +2046,7 @@ function roundsMsg(text, kind) {
 $g("loadRoundsBtn").addEventListener("click", loadRounds);
 
 function renderAll() {
-  renderSeasonState(); renderWarSize(); renderClans(); renderAnalysis();
+  renderSeasonState(); renderWarSize(); renderMyClan(); renderClans(); renderAnalysis();
   renderEligibility(); renderAssignments(); renderRounds();
 }
 
