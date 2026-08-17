@@ -932,13 +932,86 @@ function eligibilityCard(m, inRoster) {
   </article>`;
 }
 
+/* ---------------- ordering the step-4 list ----------------
+ *
+ * The default is the model's own answer: league first, hardest down, and score
+ * within each league. That is the ranking, and it is what the numbers on the
+ * cards mean — so sorting never renumbers anyone. Like the suggested-only
+ * filter, it is a view over one fixed ranking, and #1 stays #1 whichever way
+ * the list is pointed.
+ *
+ * The columns worth re-ordering by are the ones that answer a different
+ * question from "who is best overall": who has the biggest bases, who has
+ * actually been attacking, who is quietly beating their league's par.
+ *
+ * Held in memory rather than saved, for the same reason the ranking is: both
+ * are rebuilt every time the analysis runs, and a sort saved against a ranking
+ * that no longer exists is worth nothing. */
+let eligSort = { key: "default", dir: "desc" };
+
+const ELIG_SORTS = {
+  default: { label: "Ranking — league, then score" },
+  score:   { label: "Score", of: (m) => (m.rated ? m.score : null) },
+  form:    { label: "Form", of: (m) => m.formScore },
+  // The column reads "16 atk · +38 vs par 38", so it carries two figures. Volume
+  // is the one people scan it for — who is turning up — and performance against
+  // par settles ties, which is exactly the pair the column shows.
+  atk:     { label: "Ranked attacks", of: (m) => (m.summary.hasData ? m.summary.attackCount : null),
+             tie: (m) => (m.summary.avgAttackGain || 0) / (m.expectedGain || 1) },
+  th:      { label: "Town Hall", of: (m) => m.thLevel || null },
+};
+
+function sortedMembers() {
+  const spec = ELIG_SORTS[eligSort.key];
+  const members = eligibility.members;
+  if (!spec || !spec.of) return members;
+
+  const sign = eligSort.dir === "asc" ? 1 : -1;
+  const tie = spec.tie || (() => 0);
+
+  return members.slice().sort((a, b) => {
+    const av = spec.of(a);
+    const bv = spec.of(b);
+    // A player we could not measure has no value on this column — not a low one.
+    // They sort last in BOTH directions, because ascending by score otherwise
+    // opens the list with every account whose battle log failed to load, which
+    // is the least useful thing it could show.
+    if (av == null || bv == null) {
+      if (av == null && bv == null) return a.rank - b.rank;
+      return av == null ? 1 : -1;
+    }
+    return (av - bv) * sign
+      || (tie(a) - tie(b)) * sign
+      // Equal on the column, so fall back to the ranking. Keeps the order
+      // stable and meaningful rather than leaving ties to sort order chance.
+      || a.rank - b.rank;
+  });
+}
+
+/* Just the cards. Sorting and filtering rebuild this and leave the controls
+   above it alone, so the select does not lose focus mid-interaction. */
+function renderEligibilityList() {
+  const suggested = new Set(eligibility.suggested);
+  $g("eligibilityList").querySelector(".elig-list").innerHTML = sortedMembers()
+    .map((m) => eligibilityCard(m, suggested.has(m.tag)))
+    .join("");
+
+  // The desktop header doubles as the sort control, so it shows which column is
+  // active and which way it points.
+  $g("eligibilityList").querySelectorAll("[data-sort]").forEach((b) => {
+    const on = b.dataset.sort === eligSort.key;
+    b.classList.toggle("is-sorted", on);
+    b.dataset.dir = on ? eligSort.dir : "";
+  });
+}
+
 function renderEligibility() {
   const show = state.roster.length > 0;
   $g("eligibilitySection").style.display = show ? "block" : "none";
   if (!show || !eligibility) return;
 
   const suggested = new Set(eligibility.suggested);
-  const cards = eligibility.members
+  const cards = sortedMembers()
     .map((m) => eligibilityCard(m, suggested.has(m.tag)))
     .join("");
 
@@ -980,6 +1053,11 @@ function renderEligibility() {
   // the numbering are untouched, so a hidden player is one tap away rather than
   // gone. It defaults to everyone, because a list that silently omits members
   // would misrepresent the clan to anyone who did not notice the switch.
+  // The sort lives here rather than only on the column headers, because on a
+  // phone there are no column headers — the cards carry their own labels.
+  const options = Object.entries(ELIG_SORTS).map(([key, s]) =>
+    `<option value="${key}"${key === eligSort.key ? " selected" : ""}>${escG(s.label)}</option>`).join("");
+
   const filter = `<div class="elig-toolbar">
     <div class="seg" role="group" aria-label="Which players to show">
       <button type="button" class="seg-btn is-on" data-filter="all"
@@ -987,20 +1065,32 @@ function renderEligibility() {
       <button type="button" class="seg-btn" data-filter="pick"
         aria-pressed="false">Suggested ${eligibility.suggested.length}</button>
     </div>
-    <span class="muted small elig-hint">Tap a player for their ranked round and league history</span>
+    <div class="elig-sort">
+      <label class="muted small" for="eligSortBy">Sort</label>
+      <select id="eligSortBy">${options}</select>
+      <button type="button" id="eligSortDir" class="secondary"
+        ${eligSort.key === "default" ? "disabled" : ""}
+        aria-label="Reverse the order">${eligSort.dir === "asc" ? "↑ Low first" : "↓ High first"}</button>
+    </div>
   </div>`;
 
   const list = $g("eligibilityList");
   list.innerHTML = `
-    <p class="muted small">Grouped by league, hardest first — every Legend I player, then
+    <p class="muted small">Ranked by league, hardest first — every Legend I player, then
       Legend II, and so on — and by score within each league. The
       ${eligibility.suggested.length} highlighted players are the strongest by score regardless
-      of league, for war size ${state.warSize}.</p>
+      of league, for war size ${state.warSize}. Sorting re-orders the list without re-ranking
+      anyone: the number on each card is their place in the ranking above, whichever way you
+      point it.</p>
     ${glossaryHtml()}
     ${filter}
-    <div class="elig-head" aria-hidden="true">
-      <span>#</span><span>Player</span><span>TH</span><span>Score</span><span>Form</span>
-      <span>Ranked attacks vs league par</span><span>Evidence</span><span>Window</span><span></span>
+    <div class="elig-head">
+      <span>#</span><span>Player</span>
+      <button type="button" data-sort="th">TH</button>
+      <button type="button" data-sort="score">Score</button>
+      <button type="button" data-sort="form">Form</button>
+      <button type="button" data-sort="atk">Ranked attacks vs league par</button>
+      <span>Evidence</span><span>Window</span><span></span>
     </div>
     <div class="elig-list">${cards}</div>${sourceNote}${truncWarn}${warn}`;
 
@@ -1010,10 +1100,49 @@ function renderEligibility() {
   // The container outlives the render and the handler is a stable reference, so
   // re-adding it on every render is a no-op rather than a second subscription.
   list.addEventListener("click", onEligibilityClick);
+  list.addEventListener("change", onEligibilitySortChange);
+}
+
+/* Point the list at a column. Re-picking the active one flips it, which is what
+   a second click on a table header has always meant. */
+function setEligSort(key, dir) {
+  eligSort = {
+    key,
+    dir: dir || (key === eligSort.key
+      ? (eligSort.dir === "desc" ? "asc" : "desc")
+      // Every column here reads best-first on the way down: the highest score,
+      // the most attacks, the biggest Town Hall.
+      : "desc"),
+  };
+
+  const select = $g("eligSortBy");
+  const flip = $g("eligSortDir");
+  if (select) select.value = key;
+  if (flip) {
+    flip.textContent = eligSort.dir === "asc" ? "↑ Low first" : "↓ High first";
+    // Nothing to reverse in the model's own order — it is a ranking, not a
+    // column, and upside down it is not a second useful view.
+    flip.disabled = key === "default";
+  }
+  renderEligibilityList();
+}
+
+function onEligibilitySortChange(e) {
+  if (e.target.id !== "eligSortBy") return;
+  setEligSort(e.target.value, "desc");
 }
 
 function onEligibilityClick(e) {
   const list = e.currentTarget;
+
+  // Sorting, from either control: the column headers on a wide screen, the
+  // reverse button next to the picker everywhere.
+  const header = e.target.closest("[data-sort]");
+  if (header) { setEligSort(header.dataset.sort); return; }
+  if (e.target.closest("#eligSortDir")) {
+    setEligSort(eligSort.key, eligSort.dir === "desc" ? "asc" : "desc");
+    return;
+  }
 
   // Older battles inside an already-open card. Checked first: it sits inside the
   // detail panel, so letting the summary handler see it would close the card the

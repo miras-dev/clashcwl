@@ -637,6 +637,30 @@ button.wm-you:hover { border-color: var(--primary); background: rgba(207,56,56,.
   padding: 0 12px 8px;
   font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
 }
+/* Four of the headers sort the list. They are real buttons rather than styled
+   spans so the keyboard reaches them, and they keep the header's own type — a
+   control that looks like a column heading is the point. */
+.elig-head button {
+  background: none; border: 0; padding: 0; text-align: left; cursor: pointer;
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+}
+.elig-head button:hover { background: none; color: var(--text); }
+.elig-head button.is-sorted { color: var(--text); }
+/* The arrow only appears on the active column, so the header row does not turn
+   into a row of decoration. */
+.elig-head button.is-sorted::after { content: " ↓"; }
+.elig-head button.is-sorted[data-dir="asc"]::after { content: " ↑"; }
+
+.elig-sort { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.elig-sort label { margin: 0; flex: none; }
+/* The global select rule is width:100%, and a flex item defaults to a minimum
+   of its content — together they push the reverse button off the row on a
+   phone. This lets the select give up the width instead. */
+.elig-sort select {
+  width: auto; min-width: 0; max-width: 190px;
+  padding: 6px 10px; font-size: .8rem; font-weight: 600;
+}
+#eligSortDir { padding: 6px 10px; font-size: .78rem; white-space: nowrap; flex: none; }
 .elig-list { display: flex; flex-direction: column; gap: 8px; }
 /* The suggested-only view. A filter, never a re-rank — the numbering in the
    cards is the full-clan ranking either way. */
@@ -832,7 +856,11 @@ button.elig-summary:focus-visible { outline: 2px solid var(--primary-text); outl
    read better than a table long before the screen is phone-sized. */
 @media (max-width: 900px) {
   .elig-head { display: none; }
-  .elig-hint { display: none; }
+  /* The header is gone at this width, so the picker is the only way to sort —
+     it takes the full row rather than being squeezed beside the filter. */
+  .elig-toolbar { gap: 10px; }
+  .elig-sort { flex: 1 1 100%; }
+  .elig-sort select { flex: 1 1 auto; max-width: none; }
 
   .elig-summary {
     grid-template-columns: 22px minmax(0, 1fr) auto 14px;
