@@ -168,8 +168,11 @@ function formConfidence(summary) {
   if (!summary || !summary.hasData) return 0;
 
   const byAttacks = clamp01((summary.attackCount || 0) / CONFIDENT_ATTACKS);
-  // Defenses are weaker evidence — they say a player was online, not that they
-  // attacked — so they can only carry confidence part of the way on their own.
+  // Defenses are weaker evidence, and not the kind the word "presence" suggests:
+  // they land on a base whether or not anyone is playing, so they say the
+  // account is in the ranked pool and nothing more. That still means the log we
+  // are reading is a real, populated one rather than a stub — which is what
+  // confidence measures — so they can carry it part of the way, never all of it.
   const byPresence = clamp01((summary.attackCount + summary.defenseCount) / 20) * 0.7;
 
   return Math.max(byAttacks, byPresence);
@@ -202,22 +205,40 @@ function explain({ player, summary, rank, par, score, form, confidence, rated, b
   if (!rated) {
     return {
       verdict: "no",
+      call: "unknown",
       rationale: `No ranked battles could be read for this player, so there is nothing to judge. `
         + `The game's API returns an error for some accounts — that is a gap on our side, not `
         + `evidence they are inactive. If you know they play, field them on your own judgement.`,
     };
   }
 
-  // A log that exists and shows no attacks is the strongest negative we have.
+  /* A log that exists and shows no attacks.
+   *
+   * This used to read as the strongest negative we had — "online and being
+   * farmed, just not hitting back", closing on the flat prediction that they
+   * would skip their war attack too. Two things were wrong with that.
+   *
+   * Defences do not prove presence. They happen TO a base whether or not
+   * anyone is playing, so a player on holiday all week collects them exactly
+   * like a player who is sitting there refusing to attack. Reading them as
+   * evidence of someone being online was simply incorrect.
+   *
+   * And a quiet window is an absence of evidence, not evidence of absence. The
+   * commonest reason for it is the dullest one: they were away. The score
+   * already reflects what we can see, so the words do not need to add a verdict
+   * on the person on top of it — they need to say what was and was not observed
+   * and hand the call back to whoever knows the player. */
   if (!atk) {
     const def = summary.defenseCount;
     return {
       verdict: "no",
-      rationale: `Has not attacked once in the last ${summary.windowDays.toFixed(1)} days`
-        + (def ? `, despite being attacked ${def} time${def === 1 ? "" : "s"} in that window — `
-               + `so they are online and being farmed, just not hitting back. ` : ". ")
-        + `CWL is decided by attacks used. Someone who is not using their ranked attacks is `
-        + `unlikely to use their war attack either.`,
+      call: "quiet",
+      rationale: `No ranked attacks in the last ${summary.windowDays.toFixed(1)} days`
+        + (def ? `, though the base was attacked ${def} time${def === 1 ? "" : "s"} in that window — `
+               + `defences land whether or not anyone is playing, so they say nothing either way. `
+               : ". ")
+        + `That is an absence of evidence rather than evidence against them: a week away from the `
+        + `game looks exactly like this. Worth asking before you count them out.`,
     };
   }
 
@@ -470,7 +491,7 @@ function scoreMember(player, battlelog, thresholds = null) {
   const par = expectedAttackGain(rank);
   const band = priorityBand(player, summary, thresholds);
   const tripledAgainst = tripledAgainstRate(summary);
-  const { verdict, rationale } = explain({
+  const { verdict, rationale, call } = explain({
     player, summary, rank, par, score, form, confidence, rated, band, tripledAgainst,
     bandRelative: !!thresholds?.relative,
   });
@@ -478,6 +499,15 @@ function scoreMember(player, battlelog, thresholds = null) {
   return {
     verdict,
     rationale,
+    /* How to LABEL the verdict, where "Avoid" would be wrong.
+     *
+     * The verdict itself is unchanged — these players are still not in the
+     * suggested roster, because nothing we can see says they should be. But
+     * "Avoid" is a judgement on a person, and neither of the cases that carry a
+     * `call` has earned one: an unreadable log is our failure, and a quiet
+     * window is most often a holiday. Ranking is one thing to get right and
+     * naming is another. */
+    call: call || null,
     band,
     bandLabel: (thresholds?.relative ? BAND_LABEL_RELATIVE : BAND_LABEL)[band],
     bandRelative: !!thresholds?.relative,

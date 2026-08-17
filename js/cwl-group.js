@@ -661,11 +661,20 @@ function activeRoster(ranks) {
 let eligibility = null;
 
 /* The call on each player, colour-coded. Green field them, amber playable but
-   unresolved, red hard to justify. Set by explain() in js/eligibility.js. */
+   unresolved, red hard to justify. Set by explain() in js/eligibility.js.
+
+   The last two are not verdicts. A player whose battle log will not load, and
+   one who simply did not play this week, both used to be labelled "Avoid" in
+   red — a judgement on the person, where the first is our own failure to read
+   the API and the second is most often a holiday. They are still outside the
+   suggested roster, because nothing we can see argues for them; they are just
+   named for what was actually observed, in a colour that does not shout. */
 const VERDICT = {
-  yes:   { label: "Pick",   color: "var(--green)" },
-  maybe: { label: "Maybe",  color: "var(--gold)" },
-  no:    { label: "Avoid",  color: "var(--red)" },
+  yes:     { label: "Pick",        color: "var(--green)" },
+  maybe:   { label: "Maybe",       color: "var(--gold)" },
+  no:      { label: "Avoid",       color: "var(--red)" },
+  quiet:   { label: "No activity", color: "var(--muted)" },
+  unknown: { label: "No record",   color: "var(--muted)" },
 };
 
 /* Confidence is driven by attacks observed, not by how long the window is — a
@@ -853,20 +862,27 @@ function eligibilityCard(m, inRoster) {
   const conf = confidenceLabel(m.confidence);
   // The verdict drives the colour, not the score: a 55 can be a strong Legend I
   // attacker with few attacks on record, or someone coasting below par, and
-  // those want opposite decisions.
-  const v = VERDICT[m.verdict] || VERDICT.no;
+  // those want opposite decisions. `call` overrides the label where the verdict
+  // is right but "Avoid" would be an accusation — see VERDICT.
+  const v = VERDICT[m.call] || VERDICT[m.verdict] || VERDICT.no;
+
+  // A player with nothing observed keeps their number — it is what ranks them —
+  // but not the warning colour. Red is for a record that argues against someone;
+  // a week with no attacks in it is an empty record, and painting the resulting
+  // zero red states a case the data has not made. See VERDICT.
+  const grade = (n) => (m.call ? "var(--muted)" : formColor(n));
 
   // An unrated player has no score to show. A bare 0 would read as a judgement
   // rather than a gap in the data, so it says which it is.
   const score = m.rated
-    ? `<span style="color:${formColor(m.score)}">${m.score}</span>`
+    ? `<span style="color:${grade(m.score)}">${m.score}</span>`
     : `<span class="muted elig-unrated">unrated</span>`;
 
   // Form is the headline number, so an absent one has to read as "unknown"
   // rather than as a low score.
   const form = m.formScore == null
     ? `<span class="muted">—</span>`
-    : `<span style="color:${formColor(m.formScore)}">${m.formScore}</span>`;
+    : `<span style="color:${grade(m.formScore)}">${m.formScore}</span>`;
 
   // Show the average against its league's par, or "+38 avg" alone invites the
   // exact misreading this whole model exists to prevent — that a big number in
@@ -1137,11 +1153,22 @@ function glossaryHtml() {
             <td class="muted">Playable, but something is unresolved — too few attacks to be sure,
             or real activity at middling quality</td></tr>
         <tr><td><strong style="color:var(--red)">Avoid</strong></td>
-            <td class="muted">Not attacking, barely attacking, or no readable record at all</td></tr>
+            <td class="muted">Attacking, but well below what their league normally yields</td></tr>
+        <tr><td><strong class="muted">No activity</strong></td>
+            <td class="muted">Their log is readable and shows no attacks this window — which is
+            what a week away from the game looks like too, so it is a gap to ask about rather
+            than a verdict</td></tr>
+        <tr><td><strong class="muted">No record</strong></td>
+            <td class="muted">Their battle log would not load at all. That is our failure to
+            read the API, not evidence about them</td></tr>
       </tbody></table>
       <p class="muted">Strong form on thin evidence never drops below <strong>Maybe</strong>:
       the score has already been discounted for low volume, so judging it against the same
       thresholds again would penalise the shortage twice.</p>
+      <p class="muted">The last two are still left out of the suggested roster — nothing we can
+      see argues for them, and inventing a case would be worse than admitting the gap. If you
+      know someone was on holiday, that is information the API does not have and you do: field
+      them on your own judgement.</p>
 
       <h4 style="margin:14px 0 4px">Score <span class="muted small">— the ranking number, 0-100</span></h4>
       <p class="muted">Form, discounted by how much evidence stands behind it:</p>
@@ -1160,9 +1187,9 @@ function glossaryHtml() {
         <tr><td>League</td><td class="muted">bonus for competing in a harder tier</td><td style="text-align:right">10%</td></tr>
       </tbody></table>
       <p class="muted">Activity carries the most weight on purpose: CWL is won by people who
-      use their attacks, not by whoever posts the single best hit. A player with defences but
-      zero attacks scores on activity alone — a defence proves someone was online, not that
-      they attacked.</p>
+      use their attacks, not by whoever posts the single best hit. Only attacks count towards
+      it — a defence lands on your base whether or not you are playing, so a week of defences
+      and no attacks says nothing about whether the player was there.</p>
 
       <h4 style="margin:14px 0 4px">Ranked attacks vs league par</h4>
       <p class="muted">Raw counts, plus the par for that player's league. Ranked

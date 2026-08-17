@@ -214,15 +214,28 @@ console.log("scoreMember");
   test("zero attacks is argued, not just scored", () => {
     const m = scoreMember(maxed, rankedLog);   // fixture has 0 attacks, 16 defenses
     assert.strictEqual(m.verdict, "no");
-    assert.match(m.rationale, /not attacked once/i);
-    // The defenses are the point: they prove the player was online and chose not
-    // to hit back, which is far stronger than simply having no attacks logged.
+    assert.match(m.rationale, /no ranked attacks/i);
+    // The defenses are still reported — 16 of them is a fact about the window,
+    // and hiding it would make a busy account look like an empty one.
     assert.match(m.rationale, /16 times/);
+  });
+  test("a quiet window is not read as a verdict on the player", () => {
+    const m = scoreMember(maxed, rankedLog);
+    // Still outside the suggested roster — nothing observed argues for them —
+    // but labelled for what was seen rather than accused of avoiding war.
+    assert.strictEqual(m.call, "quiet");
+    // Defenses land on a base whether or not anyone is playing, so they are not
+    // evidence the player was there. Claiming otherwise is what made a holiday
+    // read as someone refusing to attack.
+    assert.ok(!/online/i.test(m.rationale),
+      `defenses must not be read as presence: ${m.rationale}`);
+    assert.match(m.rationale, /away from the game|absence of evidence/i);
   });
   test("no battle log reads as a gap in our data, not a lazy player", () => {
     const m = scoreMember(maxed, null);
     assert.strictEqual(m.formScore, null);
     assert.strictEqual(m.verdict, "no");
+    assert.strictEqual(m.call, "unknown");
     assert.match(m.rationale, /nothing to judge/i);
     assert.match(m.rationale, /gap on our side/i);
   });
