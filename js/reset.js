@@ -20,6 +20,7 @@ const LABELS = {
   cc_cwl_group:     "CWL group, roster and war-day assignments",
   cc_cwl_roster:    "CWL planner roster",
   cc_cwl_cart:      "CWL medal shopping list",
+  cc_legends:       "the players you looked up on Legends Day",
   cc_player:        "your analysed village",
   cc_bases:         "saved Legend base layouts",
   cc_openai_key:    "your OpenAI API key",
@@ -87,11 +88,7 @@ function mount() {
   btn.title = "Delete everything this site has saved in your browser";
   btn.addEventListener("click", clearAll);
 
-  // Before the GitHub link when there is one, so the icon stays the last thing
-  // in the bar on every page.
-  const github = nav.querySelector(".github-link");
-  if (github) nav.insertBefore(btn, github);
-  else nav.appendChild(btn);
+  nav.appendChild(btn);
 }
 
 if (document.readyState === "loading") {

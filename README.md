@@ -1,6 +1,6 @@
 # ⚔️ Clash Companion
 
-A three-page web app for Clash of Clans players, built with the **July 2026** game state
+A web app for Clash of Clans players, built with the **July 2026** game state
 (TH18 meta, Dragon Duke, the 41-piece equipment roster, and the April 2026 Ranked rework).
 
 ## Pages
@@ -48,6 +48,14 @@ Then open http://localhost:8642.
    **ranked form** (see below), never on Town Hall or hero levels, so day rosters only appear
    once the form analysis has been run. Season state persists in `localStorage`.
 
+5. **Legends Day** (`legends.html`) — one player's ranked day, battle by battle. Enter a
+   player tag and the page rebuilds every day still in the account's battle log: attacks
+   used out of the eight, what they earned, every defence taken and what it cost, the day's
+   net, and where the trophy count stood when the day opened. Ranked resets at **05:00 UTC**,
+   so that is the day boundary — a battle at 04:30 belongs to the day before. Reads the same
+   `/api/player` + `/api/battlelog` pair the CWL Helper already uses; day maths lives in
+   `js/legendday.js`. Deep-linkable with `?tag=`, and every clan mate is one tap away.
+
 ## Live clan data (optional)
 
 The CWL Helper works fully in **manual mode** with no setup. For live fetching, the official
@@ -91,6 +99,21 @@ node test/battlelog.test.js
 The test fixtures are real API responses, and the expected trophy values were read
 off ClashPerk's `/legend days` output for the same player at the same moment — the
 only external check available, since the API itself never returns the number.
+
+## Legend days
+
+`js/legendday.js` turns that rolling buffer into days. Ranked resets at **05:00 UTC**
+worldwide, so a day runs 05:00 → 05:00 and the day is keyed by the UTC date it opened on.
+
+The API publishes no trophy history — only where an account stands right now — so a day's
+starting trophies are walked backwards from the live count: subtract everything that has
+happened since. That is exact for the current day and for any complete day still inside the
+buffer, so each day carries a `complete` flag (true when the log reaches back past the day's
+opening) rather than quietly reporting a half-day as a whole one.
+
+```bash
+node test/legendday.test.js
+```
 
 ## CWL eligibility scoring
 

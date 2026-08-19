@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Google Analytics (GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-RZR3JSMYB6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-RZR3JSMYB6');
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Legends Day — Clash Companion</title>
+  <meta name="description" content="Your Legend League day, battle by battle: attacks used out of eight, trophies gained, every defence taken, and where the day started." />
+  <link rel="canonical" href="https://clashcwl.com/legends.html" />
+  <link rel="icon" type="image/jpeg" href="/assets/logo.jpeg" />
+  <link rel="apple-touch-icon" href="/assets/logo.jpeg" />
+  <meta name="theme-color" content="#0f1420" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Clash Companion" />
+  <meta property="og:title" content="Legends Day — Clash Companion" />
+  <meta property="og:description" content="Your Legend League day, battle by battle: attacks used out of eight, trophies gained, every defence taken, and where the day started." />
+  <meta property="og:url" content="https://clashcwl.com/legends.html" />
+  <meta property="og:image" content="https://clashcwl.com/assets/logo.jpeg" />
+  <meta property="og:image:alt" content="Clash Companion logo" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Legends Day — Clash Companion" />
+  <meta name="twitter:description" content="Your Legend League day, battle by battle — attacks, defences and the trophy net." />
+  <meta name="twitter:image" content="https://clashcwl.com/assets/logo.jpeg" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .dot-on { background: var(--green); } .dot-off { background: var(--muted); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo"><span class="logo-slot"><img src="assets/logo.jpeg" alt="logo" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='assets/logo.png'}else{this.parentElement.classList.add('empty');this.remove()}" /></span>Clash<span>Companion</span></div>
+    <div class="nav-links">
+    <a href="index.html">CWL Helper</a>
+    <a href="legends.html" class="active">Legends Day</a>
+    <a href="analyzer.html">Village Analyzer</a>
+    <a href="ores.html">Ores &amp; Equipment</a>
+    <a href="cwl.html">CWL Planner</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge">Meta data: July 2026 · TH18</div>
+  </nav>
+
+  <main>
+    <h1>Legends <span class="gold">Day</span></h1>
+    <p class="subtitle">
+      Your ranked day, battle by battle. Enter a player tag and this page pulls the account's
+      battle log and rebuilds each day: <strong>attacks used out of the eight</strong>, what they
+      earned, every defence taken, and where the trophy count stood when the day opened.
+      Ranked resets at <strong>05:00 UTC</strong>, so that is where a day starts and ends here —
+      not at your midnight.
+      <span id="proxyStatus" class="pill" style="margin-left:6px"><span class="status-dot dot-off"></span>checking data source…</span>
+    </p>
+
+    <div class="tool-grid">
+      <a class="tool-card" href="index.html">
+        <div class="tool-ico">⚔️</div>
+        <div><strong>CWL Helper</strong><span class="muted small">Rank your whole clan on ranked form</span></div>
+      </a>
+      <a class="tool-card" href="analyzer.html">
+        <div class="tool-ico">🏰</div>
+        <div><strong>Village Analyzer</strong><span class="muted small">Upgrade priorities &amp; equipment tiers</span></div>
+      </a>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 4px">Whose day?</h3>
+      <p class="muted small" style="margin:0 0 10px">
+        Your player tag is under your name in-game — it starts with a <code>#</code>. Load one
+        and every clan mate is a tap away.
+      </p>
+      <div class="row">
+        <input type="text" id="tagInput" placeholder="#8JLYC9VG" style="max-width:220px" autocomplete="off"
+               spellcheck="false" aria-label="Player tag" />
+        <button id="loadBtn">Load ranked days</button>
+        <span id="loadMsg" class="muted small"></span>
+      </div>
+      <div id="recents" class="row" style="margin-top:12px; gap:6px"></div>
+      <div id="mates" style="margin-top:4px; max-width:320px"></div>
+    </div>
+
+    <div id="report"></div>
+  </main>
+
+  <script src="js/battlelog.js"></script>
+  <script src="js/leaguetiers.js"></script>
+  <script src="js/legendday.js"></script>
+  <script src="js/legends.js"></script>
+  <script src="js/reset.js"></script>
+</body>
+</html>

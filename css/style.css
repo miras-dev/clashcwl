@@ -60,6 +60,16 @@ nav a {
 }
 nav a:hover { color: var(--text); background: var(--card); }
 nav a.active { color: var(--primary-text); background: var(--card); }
+/* The destinations are one row that never wraps. They used to be inline text
+   in a plain div, so a fifth tool pushed the bar onto two lines at laptop
+   widths; as a flex row they shrink first and, if they still run out of room,
+   scroll the way they do on a phone. */
+nav .nav-links {
+  display: flex; align-items: center; gap: 6px;
+  flex: 0 1 auto; min-width: 0;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+nav .nav-links::-webkit-scrollbar { display: none; }
 nav .spacer { flex: 1; }
 nav .badge {
   font-size: .72rem; color: var(--muted); border: 1px solid var(--border);
@@ -73,6 +83,26 @@ nav .nav-clear {
 }
 nav .nav-clear:hover { border-color: var(--red); color: var(--red); background: var(--card2); }
 nav .logo { white-space: nowrap; flex: none; }
+
+/* Below a wide laptop the bar cannot hold everything. The meta badge goes
+   first — it is a footnote, and the links are the navigation — and the strip
+   fades at its right edge so it is clear the links keep going. */
+@media (max-width: 1300px) {
+  nav .badge { display: none; }
+  nav .nav-links {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+            mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+  }
+}
+
+/* Tighter still: on a tablet the wordmark and the "Clear saved data" label are
+   the last things worth their width, so both drop to their icons and every
+   destination stays on the bar without a swipe. */
+@media (max-width: 1150px) {
+  nav .logo { font-size: 0; gap: 0; }
+  nav .nav-clear { font-size: 0; padding: 5px 8px; }
+  nav .nav-clear::after { content: "🗑"; font-size: .9rem; }
+}
 
 /* Mobile: the logo stays put and the links become a swipeable strip.
    Without this the nowrap links force ~540px of horizontal page overflow. */
@@ -94,19 +124,11 @@ nav .logo { white-space: nowrap; flex: none; }
             mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
   }
   nav .nav-links::-webkit-scrollbar { display: none; }
-  /* The bar is already tight here — badge and spacer are hidden — so the label
-     drops to an icon rather than eating the room the links need. */
-  nav .nav-clear { font-size: 0; padding: 5px 8px; }
-  nav .nav-clear::after { content: "🗑"; font-size: .9rem; }
   nav a {
     padding: 13px 14px;            /* ≥44px tall — meets touch-target guidance */
     font-size: .9rem; flex: none;
     scroll-snap-align: start;
   }
-  /* The wordmark left the links only ~98px on a 375px screen, hiding every
-     destination but the first. Keep the icon, drop the text, and the links
-     get the width back. */
-  nav .logo { font-size: 0; gap: 0; }
   .logo-slot { width: 32px; height: 32px; }
   main { padding: 22px 16px 64px; }
   h1 { font-size: 1.45rem; }
@@ -389,19 +411,6 @@ code {
   background: var(--bg2); padding: 2px 6px; border-radius: 5px; font-size: .82rem;
   /* long API paths / JSON snippets must wrap rather than widen the page */
   overflow-wrap: anywhere; word-break: break-word;
-}
-
-/* ---------- github link ---------- */
-nav a.github-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  flex: none;
-  margin-left: 10px;
 }
 
 /* ---------- war map ----------
@@ -907,4 +916,142 @@ button.elig-summary:focus-visible { outline: 2px solid var(--primary-text); outl
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
   .elig-detail { padding: 0 11px 11px; }
+}
+
+/* ---------- Legend day report (legends.html) ----------
+   One ranked day for one player: where the trophies started, what the eight
+   attacks earned, what the defences gave back, and every battle behind those
+   numbers. Built phone-first — this is a page people open on their phone in
+   the ten minutes after their last hit, so nothing here relies on a wide
+   screen or on hover to be readable. */
+.ld-report {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px; margin-bottom: 18px;
+}
+.ld-eyebrow {
+  font-size: .68rem; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--gold);
+}
+.ld-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+}
+.ld-who-head { min-width: 0; flex: 1 1 240px; }
+.ld-who-head h2 { margin: 4px 0 2px; font-size: 1.9rem; color: var(--text); line-height: 1.1; }
+.ld-who-head .ld-sub { color: var(--muted); font-size: .86rem; overflow-wrap: anywhere; }
+
+/* Current trophies: the one number that is live rather than derived, so it is
+   the one thing on the page boxed off on its own. */
+.ld-trophy {
+  flex: 0 1 auto; min-width: 0;
+  border: 1px solid var(--gold); border-radius: 12px;
+  background: rgba(246, 185, 59, .07); padding: 12px 18px;
+}
+.ld-trophy i {
+  font-style: normal; display: block; font-size: .64rem; font-weight: 800;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--gold);
+}
+.ld-trophy b { font-size: 2.2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+
+/* The four figures that answer "how did the day go" without scrolling. Each
+   keeps a coloured spine so attack, defence and net stay apart at a glance. */
+.ld-tiles {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-top: 16px;
+}
+.ld-tile {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-left: 3px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  min-width: 0;
+}
+.ld-tile i {
+  font-style: normal; display: block; font-size: .62rem; font-weight: 800;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+}
+.ld-tile b { display: block; font-size: 1.55rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.ld-tile span { display: block; font-size: .72rem; color: var(--muted); }
+.ld-tile.is-attack { border-left-color: var(--gold); }
+.ld-tile.is-attack b { color: var(--gold); }
+.ld-tile.is-defense { border-left-color: var(--accent); }
+.ld-tile.is-defense b { color: var(--accent); }
+.ld-tile.is-net.up { border-left-color: var(--green); }
+.ld-tile.is-net.up b { color: var(--green); }
+.ld-tile.is-net.down { border-left-color: var(--red); }
+.ld-tile.is-net.down b { color: var(--red); }
+
+/* Which day is being read. A strip rather than a dropdown: the net movement
+   sits on every chip, so the week reads as a shape before anything is tapped. */
+.ld-days {
+  display: flex; gap: 8px; margin: 16px 0 0;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.ld-days::-webkit-scrollbar { display: none; }
+.ld-day {
+  flex: none; display: flex; flex-direction: column; gap: 1px; align-items: flex-start;
+  background: var(--bg2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 10px; padding: 7px 12px; font-weight: 700;
+  scroll-snap-align: start;
+}
+.ld-day:hover { background: var(--card2); }
+.ld-day i { font-style: normal; font-size: .68rem; color: var(--muted); font-weight: 700; }
+.ld-day b { font-size: .84rem; font-variant-numeric: tabular-nums; }
+.ld-day b.up { color: var(--green); }
+.ld-day b.down { color: var(--red); }
+.ld-day.is-on, .ld-day.is-on:hover {
+  border-color: var(--primary); background: rgba(207, 56, 56, .12);
+}
+
+/* Attacks beside defences — the same idiom the eligibility panel uses, so the
+   two pages read as one system. */
+.ld-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+.ld-cols > * { min-width: 0; }
+.ld-list {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 6px 6px;
+}
+.ld-list-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; padding: 0 10px 8px;
+}
+.ld-list-head h3 { margin: 0; font-size: 1.05rem; }
+.ld-list.atk .ld-list-head h3 { color: var(--gold); }
+.ld-list.def .ld-list-head h3 { color: var(--accent); }
+.ld-list-head .ld-sum { font-weight: 800; font-variant-numeric: tabular-nums; }
+.ld-list-head .ld-sum.up { color: var(--green); }
+.ld-list-head .ld-sum.down { color: var(--red); }
+
+.ld-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 8px;
+}
+.ld-row + .ld-row { border-top: 1px solid rgba(46, 55, 82, .5); }
+.ld-i { flex: none; width: 14px; color: var(--muted); font-size: .74rem; text-align: right; }
+.ld-when { flex: none; width: 76px; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.ld-vs { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
+.ld-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .9rem; }
+.ld-res { flex: none; color: var(--muted); font-size: .76rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* On attack a triple is the result worth spotting; on defence a hold is. */
+.ld-res.good { color: var(--gold); }
+.ld-delta { flex: none; width: 46px; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ld-delta.up { color: var(--green); }
+.ld-delta.down { color: var(--red); }
+.ld-empty { color: var(--muted); font-size: .84rem; padding: 8px 10px 14px; }
+
+/* Phones. The report is one column, the tiles pair up rather than shrinking to
+   an unreadable quarter-width, and each battle row gives its opponent the whole
+   line with the stars and destruction tucked underneath. */
+@media (max-width: 760px) {
+  .ld-report { padding: 14px 12px; }
+  .ld-who-head h2 { font-size: 1.5rem; }
+  .ld-trophy { padding: 10px 14px; }
+  .ld-trophy b { font-size: 1.7rem; }
+  .ld-tiles { grid-template-columns: 1fr 1fr; }
+  .ld-tile b { font-size: 1.3rem; }
+  .ld-cols { grid-template-columns: 1fr; }
+  .ld-row { gap: 8px; padding: 8px; }
+  .ld-i { display: none; }
+  .ld-when { width: 66px; font-size: .74rem; }
+  .ld-vs { flex-direction: column; align-items: flex-start; gap: 0; }
+  .ld-name { max-width: 100%; }
 }
