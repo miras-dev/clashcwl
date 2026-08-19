@@ -12,7 +12,7 @@
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Legends Day — Clash Companion</title>
-  <meta name="description" content="Your Legend League day, battle by battle: attacks used out of eight, trophies gained, every defence taken, and where the day started." />
+  <meta name="description" content="Your Clash of Clans ranked run, battle by battle: Legend I legend days at 8 attacks a day, weekly Ranked pools for every league below, trophies gained and every defence taken." />
   <link rel="canonical" href="https://clashcwl.com/legends.html" />
   <link rel="icon" type="image/jpeg" href="/assets/logo.jpeg" />
   <link rel="apple-touch-icon" href="/assets/logo.jpeg" />
@@ -20,13 +20,13 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Clash Companion" />
   <meta property="og:title" content="Legends Day — Clash Companion" />
-  <meta property="og:description" content="Your Legend League day, battle by battle: attacks used out of eight, trophies gained, every defence taken, and where the day started." />
+  <meta property="og:description" content="Your ranked run, battle by battle: Legend I legend days, weekly Ranked pools below, attacks used out of your league's allowance." />
   <meta property="og:url" content="https://clashcwl.com/legends.html" />
   <meta property="og:image" content="https://clashcwl.com/assets/logo.jpeg" />
   <meta property="og:image:alt" content="Clash Companion logo" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Legends Day — Clash Companion" />
-  <meta name="twitter:description" content="Your Legend League day, battle by battle — attacks, defences and the trophy net." />
+  <meta name="twitter:description" content="Your ranked run, battle by battle — legend days in Legend I, ranked weeks below, attacks, defences and the trophy net." />
   <meta name="twitter:image" content="https://clashcwl.com/assets/logo.jpeg" />
   <link rel="stylesheet" href="css/style.css" />
   <style>
@@ -51,11 +51,14 @@
   <main>
     <h1>Legends <span class="gold">Day</span></h1>
     <p class="subtitle">
-      Your ranked day, battle by battle. Enter a player tag and this page pulls the account's
-      battle log and rebuilds each day: <strong>attacks used out of the eight</strong>, what they
-      earned, every defence taken, and where the trophy count stood when the day opened.
-      Ranked resets at <strong>05:00 UTC</strong>, so that is where a day starts and ends here —
-      not at your midnight.
+      Your ranked run, battle by battle. Enter a player tag and this page pulls the account's
+      battle log and rebuilds it: attacks used <strong>out of what your league grants</strong>,
+      what they earned, every defence taken, and where the trophy count stood at the start.
+      <strong>Legend I</strong> plays legend <strong>days</strong> — 8 attacks and 8 defenses,
+      wiped at 05:00 UTC. <strong>Every league below it</strong> is scored over the
+      <strong>week</strong>, Monday to Monday at 05:00 UTC, on an attack allowance that rises
+      with the ladder (6 a week in the Skeleton leagues, 24 in Legend III, 30 in Legend II).
+      The page reads your league and follows whichever clock you are on.
       <span id="proxyStatus" class="pill" style="margin-left:6px"><span class="status-dot dot-off"></span>checking data source…</span>
     </p>
 
@@ -71,7 +74,7 @@
     </div>
 
     <div class="card">
-      <h3 style="margin:0 0 4px">Whose day?</h3>
+      <h3 style="margin:0 0 4px">Whose account?</h3>
       <p class="muted small" style="margin:0 0 10px">
         Your player tag is under your name in-game — it starts with a <code>#</code>. Load one
         and every clan mate is a tap away.
@@ -79,7 +82,7 @@
       <div class="row">
         <input type="text" id="tagInput" placeholder="#8JLYC9VG" style="max-width:220px" autocomplete="off"
                spellcheck="false" aria-label="Player tag" />
-        <button id="loadBtn">Load ranked days</button>
+        <button id="loadBtn">Load ranked battles</button>
         <span id="loadMsg" class="muted small"></span>
       </div>
       <div id="recents" class="row" style="margin-top:12px; gap:6px"></div>

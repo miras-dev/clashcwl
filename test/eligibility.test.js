@@ -6,7 +6,8 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const { formScore, scoreMember, rankClan,
-        tierRank, expectedAttackGain, tierBonus } = require("../js/eligibility.js");
+        tierRank, expectedAttackGain, tierBonus,
+        weeklyAttackAllowance } = require("../js/eligibility.js");
 
 const rankedLog = JSON.parse(
   fs.readFileSync(path.join(__dirname, "fixtures", "battlelog-ranked.json"), "utf8"));
@@ -192,6 +193,37 @@ console.log("league-adjusted form");
     const dragon = formScore(summariseRanked(log(16, 3, 100)), "Dragon League 30");
     assert.ok(Number.isFinite(legendI) && Number.isFinite(dragon));
     assert.ok(legendI > 0.5, `Legend I form was only ${legendI.toFixed(3)}`);
+  });
+
+  // Attacks are granted per league, and only Legend I gets eight a day. Scoring
+  // everyone against that number punished the rest of the ladder for a cap the
+  // game imposed on them.
+  test("the weekly allowance follows the league", () => {
+    assert.strictEqual(weeklyAttackAllowance(36), 56);   // Legend I — 8 a day
+    assert.strictEqual(weeklyAttackAllowance(35), 30);   // Legend II
+    assert.strictEqual(weeklyAttackAllowance(34), 24);   // Legend III
+    assert.strictEqual(weeklyAttackAllowance(32), 18);   // Electro
+    assert.strictEqual(weeklyAttackAllowance(1), 6);     // Skeleton
+    assert.ok(weeklyAttackAllowance(20) > 6 && weeklyAttackAllowance(20) < 18,
+      "the middle of the ladder is interpolated between the two anchors");
+  });
+
+  test("the allowance never falls as the ladder rises", () => {
+    for (let r = 1; r <= 36; r++)
+      assert.ok(weeklyAttackAllowance(r) >= weeklyAttackAllowance(r - 1),
+        `rank ${r} grants fewer attacks than rank ${r - 1}`);
+  });
+
+  test("playing a league out completely scores the same wherever it is", () => {
+    // 12 attacks over the same window: half of Legend III's 24 a week, and half
+    // of a Legend I account's 8 a day would be far more. The league-relative
+    // reading is what stops the Legend III player being marked inactive for
+    // using every attack the game gave them.
+    const s = summariseRanked(log(12, 2, 85));
+    const legendIII = formScore(s, "Legend III");
+    const skeleton = formScore(summariseRanked(log(3, 2, 85)), "Skeleton League 1");
+    assert.ok(legendIII > 0.5, `Legend III on a full allowance scored only ${legendIII.toFixed(3)}`);
+    assert.ok(skeleton > 0.4, `Skeleton on a full allowance scored only ${skeleton.toFixed(3)}`);
   });
 
   test("an unknown tier does not crash or zero the score", () => {

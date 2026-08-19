@@ -48,13 +48,15 @@ Then open http://localhost:8642.
    **ranked form** (see below), never on Town Hall or hero levels, so day rosters only appear
    once the form analysis has been run. Season state persists in `localStorage`.
 
-5. **Legends Day** (`legends.html`) — one player's ranked day, battle by battle. Enter a
-   player tag and the page rebuilds every day still in the account's battle log: attacks
-   used out of the eight, what they earned, every defence taken and what it cost, the day's
-   net, and where the trophy count stood when the day opened. Ranked resets at **05:00 UTC**,
-   so that is the day boundary — a battle at 04:30 belongs to the day before. Reads the same
-   `/api/player` + `/api/battlelog` pair the CWL Helper already uses; day maths lives in
-   `js/legendday.js`. Deep-linkable with `?tag=`, and every clan mate is one tap away.
+5. **Legends Day** (`legends.html`) — one player's ranked run, battle by battle. Enter a
+   player tag and the page rebuilds every period still in the account's battle log: attacks
+   used out of the league's allowance, what they earned, every defence taken and what it
+   cost, the net, and where the trophy count stood at the start. **Which period depends on
+   the league** — Legend I plays daily legend days, every tier below it is scored over the
+   week (see below). Reads `/api/player` + `/api/battlelog` (the pair the CWL Helper already
+   uses) plus `/api/leaguehistory` for the league's own attack allowance; the period maths
+   lives in `js/legendday.js`. Deep-linkable with `?tag=`, and every clan mate is one tap
+   away.
 
 ## Live clan data (optional)
 
@@ -100,16 +102,40 @@ The test fixtures are real API responses, and the expected trophy values were re
 off ClashPerk's `/legend days` output for the same player at the same moment — the
 only external check available, since the API itself never returns the number.
 
-## Legend days
+## Legend days and Ranked weeks
 
-`js/legendday.js` turns that rolling buffer into days. Ranked resets at **05:00 UTC**
-worldwide, so a day runs 05:00 → 05:00 and the day is keyed by the UTC date it opened on.
+`js/legendday.js` turns that rolling buffer into periods — and **the game keeps two clocks**,
+so which period an account is on depends on its league:
 
-The API publishes no trophy history — only where an account stands right now — so a day's
+| | Legend I | Every tier below it |
+| --- | --- | --- |
+| Period | a legend **day** | a ranked **week** |
+| Boundary | 05:00 UTC daily | Monday 05:00 UTC → Monday 05:00 UTC |
+| Allowance | 8 attacks, 8 defenses | the league's own: 6/week in Skeleton 1-3, rising to 24 in Legend III and 30 in Legend II |
+| `battleType` | `legend` | `ranked` |
+
+Grouping a weekly account by day would quarter its numbers and invent a limit it never had,
+which is why the cadence is read from the player's tier (`cadenceForTier`), falling back to
+the battle types when the API returns no tier.
+
+Neither boundary is assumed. The Monday anchor and the seven-day length come from
+`leagueSeasonId` on `/leaguehistory`, whose values sit exactly 604,800 seconds apart on
+Monday 05:00 UTC. **The allowance is not hardcoded either** — it is `maxBattles` from the
+most recent finished week played *in the same tier*, so it stays right when Supercell
+retunes it. A tier the history has never seen leaves the count without a denominator, which
+is honest; defaulting to eight would apply a Legend I number to a league that never granted
+it.
+
+The check for both is external: ClashPerk read the ranked fixture as "0/24 attacks, 16/24
+defenses", and those sixteen battles span five days that are all one week — the week opening
+Monday 2026-08-10, at the Legend III allowance of 24.
+
+The API publishes no trophy history — only where an account stands right now — so a period's
 starting trophies are walked backwards from the live count: subtract everything that has
-happened since. That is exact for the current day and for any complete day still inside the
-buffer, so each day carries a `complete` flag (true when the log reaches back past the day's
-opening) rather than quietly reporting a half-day as a whole one.
+happened since. That is exact for the current period and for any earlier one still wholly
+inside the buffer, so each carries a `complete` flag (true when the log reaches back past
+its opening) rather than quietly reporting half a week as a whole one. A week is seven days
+and the buffer is often shorter, so that flag does real work there.
 
 ```bash
 node test/legendday.test.js
@@ -148,6 +174,16 @@ post the worst numbers precisely because they compete where it is hardest. So
 each player's average is divided by their tier's par, and a small bonus rewards
 competing high. CWL itself has no modifiers, so what transfers is the player's
 skill, not the trophies their league happens to yield.
+
+Activity is measured the same way — **against the league's own allowance**, not a
+flat rate. Only Legend I gets 8 attacks a day (56 a week); every tier below it is
+granted a weekly allowance that rises with the ladder (6 in the Skeleton leagues,
+24 in Legend III, 30 in Legend II). Asking everyone for 4 attacks a day marked a
+Legend III player inactive for using all 24 of theirs, and capped a Skeleton
+player at a fifth of the activity score however completely they played. Full
+activity is now half the league's own allowance, which is exactly what the flat
+target already asked of a Legend I account — so Legend I scores unchanged and the
+rest of the ladder is no longer punished for a limit the game set.
 
 Tier order comes from the game's own `GET /leaguetiers` — 37 rungs from Unranked
 to Legend I, where `id - 105000000` is the ladder position.

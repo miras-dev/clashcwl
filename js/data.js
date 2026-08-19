@@ -164,7 +164,8 @@ const DEFAULT_KB = {
   },
 
   ranked: {
-    system: "Ranked Battles (reworked April 2026). Weekly pools of 100 players per league; top earners promote, bottom demote. Lower leagues: 6 attacks/week; Legend League: up to 30 attacks/week.",
+    system: "Ranked Battles (reworked April 2026). Weekly pools of 100 players per league; top earners promote, bottom demote. The week runs Monday 05:00 UTC → Monday 05:00 UTC. Attacks (and defenses) are granted per week and rise with the ladder: 6/week in Skeleton 1-3, up to 24 in Legend III and 30 in Legend II.",
+    legendOne: "Legend I is the exception: it still plays DAILY legend days — 8 attacks and 8 defenses, reset 05:00 UTC (56 ranked battles a week). Every tier below it is scored over the week instead.",
     legendTiers: "Legend League split into Legend I, II, III — same Star/League bonus, different difficulty and Battle Modifiers per tier.",
     trophies: "Above 5,000, trophies reset to 5,000 at tournament end; the excess converts to permanent Legend Trophies on your profile.",
     inactivity: "4-week grace period with no demotion; afterwards you drop only one rank every 4 weeks.",

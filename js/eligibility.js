@@ -23,10 +23,41 @@
 const BattleLog = root.BattleLog || (typeof require !== "undefined" ? require("./battlelog.js") : null);
 const summariseRanked = BattleLog.summariseRanked;
 
-/* A full set of ranked attacks is 8/day. Over the buffer's typical 3-5 day
-   window that is far more than anyone completes, so the rate is scored against
-   a realistic target rather than the theoretical maximum. */
-const TARGET_ATTACKS_PER_DAY = 4;
+/* How much of the league's OWN attack allowance counts as full activity.
+ *
+ * The allowance is not the same everywhere, and until this was tier-aware the
+ * scorer quietly punished everyone outside Legend I for a cap the game imposed
+ * on them: it asked for 4 attacks a day, which only a Legend I account (8 a day)
+ * can reach — a Legend III player who used every one of their 24 weekly attacks
+ * averages 3.4 a day, and a Skeleton player granted 6 a week averages 0.9, which
+ * scored barely a fifth of the activity mark however completely they played.
+ *
+ * Half is the bar because that is what the old flat target already asked of a
+ * Legend I account (4 of 8 a day), so this generalises the existing calibration
+ * rather than retuning it — Legend I scores exactly as before. */
+const TARGET_ALLOWANCE_SHARE = 0.5;
+
+/* Ranked attacks a league grants per WEEK.
+ *
+ * Legend I is the exception on the ladder: it still plays daily legend days at 8
+ * attacks a day, which is 56 over a week. Every tier below it is scored over the
+ * week itself and granted a fixed allowance that rises with the ladder — see
+ * js/legendday.js, which reads each account's real number from the API.
+ *
+ * The anchors are Legend II 30 and Legend III 24 (the latter confirmed against
+ * `maxBattles` on a real /leaguehistory response), 18 in the Electro range, and 6
+ * in the Skeleton leagues. The rungs between the last two are interpolated, the
+ * same way expectedAttackGain() interpolates its measured pars. Approximate in
+ * the middle of the ladder, and far closer than assuming everyone gets eight. */
+function weeklyAttackAllowance(rank) {
+  if (rank == null) return 24;                        // unknown tier — assume mid-ladder
+  if (rank >= 36) return 56;                          // Legend I — 8 a day, daily reset
+  if (rank >= 35) return 30;                          // Legend II
+  if (rank >= 34) return 24;                          // Legend III
+  if (rank >= 31) return 18;                          // Electro 31-33
+  if (rank <= 3) return 6;                            // Skeleton 1-3
+  return Math.round(6 + ((rank - 3) / 28) * 12);      // interpolated between those two
+}
 
 /* Trophies per attack tops out at 40 (a three-star takes the whole pool). */
 const MAX_ATTACK_GAIN = 40;
@@ -112,7 +143,10 @@ function formScore(summary, leagueTier) {
   if (!summary || !summary.hasData) return null;
 
   const rank = tierRank(leagueTier);
-  const activity = clamp01((summary.attacksPerDay || 0) / TARGET_ATTACKS_PER_DAY);
+  // Measured against the league's own allowance rather than a flat rate, so
+  // playing a league out completely scores the same wherever it is on the ladder.
+  const attacksPerWeek = (summary.attacksPerDay || 0) * 7;
+  const activity = clamp01(attacksPerWeek / (weeklyAttackAllowance(rank) * TARGET_ALLOWANCE_SHARE));
 
   // No attacks means no quality signal — not zero quality. Defenses say nothing
   // about how someone attacks, so an inactive player scores on activity alone.
@@ -603,7 +637,7 @@ function rankClan(players, battlelogs, { warSize = 15 } = {}) {
 }
 
 const api = { formScore, formConfidence, scoreMember, rankClan,
-              tierRank, expectedAttackGain, tierBonus };
+              tierRank, expectedAttackGain, tierBonus, weeklyAttackAllowance };
 
 root.Eligibility = api;
 if (typeof module !== "undefined" && module.exports) module.exports = api;
